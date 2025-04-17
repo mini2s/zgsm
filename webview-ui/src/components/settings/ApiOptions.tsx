@@ -268,17 +268,22 @@ const ApiOptions = ({
 	// Helper function to get the documentation URL and name for the currently selected provider
 	const getSelectedProviderDocUrl = (): { url: string; name: string } | undefined => {
 		const displayName = getProviderDisplayName(selectedProvider)
-		if (!displayName) {
-			return undefined
-		}
+		
+		console.log('displayName', displayName);
+		
+		// zgsm todo: update docs url
+		return undefined; 
+		// if (!displayName) {
+		// 	return undefined
+		// }
 
-		// Get the URL slug - use custom mapping if available, otherwise use the provider key
-		const urlSlug = providerUrlSlugs[selectedProvider] || selectedProvider
+		// // Get the URL slug - use custom mapping if available, otherwise use the provider key
+		// const urlSlug = providerUrlSlugs[selectedProvider] || selectedProvider
 
-		return {
-			url: `${DOC_BASE_URL}/${urlSlug}`,
-			name: displayName,
-		}
+		// return {
+		// 	url: `${DOC_BASE_URL}/${urlSlug}`,
+		// 	name: displayName,
+		// }
 	}
 
 	return (
@@ -306,9 +311,10 @@ const ApiOptions = ({
 						<SelectValue placeholder={t("settings:common.select")} />
 					</SelectTrigger>
 					<SelectContent>
-						<SelectItem value="openrouter">OpenRouter</SelectItem>
+						{/* todo: 国际化 */}
+						<SelectItem value="zgsm">诸葛神码</SelectItem>
 						<SelectSeparator />
-						{PROVIDERS.filter((p) => p.value !== "openrouter").map(({ value, label }) => (
+						{PROVIDERS.filter((p) => p.value !== "zgsm").map(({ value, label }) => (
 							<SelectItem key={value} value={value}>
 								{label}
 							</SelectItem>
@@ -319,6 +325,16 @@ const ApiOptions = ({
 
 			{errorMessage && <ApiErrorMessage errorMessage={errorMessage} />}
 
+			{!fromWelcomeView && selectedProvider === "zgsm" && (
+				<>
+					<VSCodeButtonLink
+						href="xxxxxx"
+						style={{ width: "100%" }}
+						appearance="primary">
+						{t("settings:providers.getOpenRouterApiKey")}
+					</VSCodeButtonLink>
+				</>
+			)}
 			{selectedProvider === "openrouter" && (
 				<>
 					<VSCodeTextField
@@ -1679,9 +1695,14 @@ const ApiOptions = ({
 }
 
 export function normalizeApiConfiguration(apiConfiguration?: ApiConfiguration) {
-	const provider = apiConfiguration?.apiProvider || "anthropic"
-	const modelId = apiConfiguration?.apiModelId
-
+	// debugger
+	const provider = apiConfiguration?.apiProvider || "zgsm"
+	const modelId = apiConfiguration?.zgsmModelId || "deepseek-chat"
+	const zgsmApiConfiguration = {
+		selectedProvider: provider,
+		selectedModelId: modelId,
+		selectedModelInfo: apiConfiguration?.openAiCustomModelInfo || openAiModelInfoSaneDefaults,
+	}
 	const getProviderData = (models: Record<string, ModelInfo>, defaultId: string) => {
 		let selectedModelId: string
 		let selectedModelInfo: ModelInfo
@@ -1698,6 +1719,8 @@ export function normalizeApiConfiguration(apiConfiguration?: ApiConfiguration) {
 	}
 
 	switch (provider) {
+		case "zgsm":
+			return zgsmApiConfiguration
 		case "anthropic":
 			return getProviderData(anthropicModels, anthropicDefaultModelId)
 		case "bedrock":
@@ -1779,7 +1802,7 @@ export function normalizeApiConfiguration(apiConfiguration?: ApiConfiguration) {
 				},
 			}
 		default:
-			return getProviderData(anthropicModels, anthropicDefaultModelId)
+			return zgsmApiConfiguration
 	}
 }
 

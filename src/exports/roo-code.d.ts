@@ -3,6 +3,7 @@ import { EventEmitter } from "events"
 type ProviderSettings = {
 	apiProvider?:
 		| (
+				| "zgsm"
 				| "anthropic"
 				| "glama"
 				| "openrouter"
@@ -191,6 +192,7 @@ type GlobalSettings = {
 				name: string
 				apiProvider?:
 					| (
+							| "zgsm"
 							| "anthropic"
 							| "glama"
 							| "openrouter"

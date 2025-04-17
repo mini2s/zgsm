@@ -15,15 +15,27 @@ const WelcomeView = () => {
 	const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined)
 
 	const handleSubmit = useCallback(() => {
+
 		const error = validateApiConfiguration(apiConfiguration)
 
 		if (error) {
 			setErrorMessage(error)
 			return
 		}
-
+		console.log('登陆校验');
 		setErrorMessage(undefined)
-		vscode.postMessage({ type: "upsertApiConfiguration", text: currentApiConfigName, apiConfiguration })
+		
+		if (apiConfiguration?.apiProvider === 'zgsm') {
+			// todo: 登陆校验
+			// 自动创建配置
+			
+			// vscode.postMessage({ type: "loginlogin", text: '假装登陆了' })
+			vscode.postMessage({ type: "upsertApiConfiguration", text: 'zgsm', apiConfiguration })
+			return;
+		} else {
+			vscode.postMessage({ type: "upsertApiConfiguration", text: currentApiConfigName, apiConfiguration })
+		}
+
 	}, [apiConfiguration, currentApiConfigName])
 
 	// Using a lazy initializer so it reads once at mount
@@ -110,7 +122,7 @@ const WelcomeView = () => {
 			<div className="sticky bottom-0 bg-vscode-sideBar-background p-5">
 				<div className="flex flex-col gap-1">
 					<VSCodeButton onClick={handleSubmit} appearance="primary">
-						{t("welcome:start")}
+						{apiConfiguration?.apiProvider === 'zgsm' ? '登陆诸葛神码' : t("welcome:start")}
 					</VSCodeButton>
 					{errorMessage && <div className="text-vscode-errorForeground">{errorMessage}</div>}
 				</div>

@@ -4,6 +4,7 @@
 type ProviderSettings = {
 	apiProvider?:
 		| (
+				| "zgsm"
 				| "anthropic"
 				| "glama"
 				| "openrouter"
@@ -194,6 +195,7 @@ type GlobalSettings = {
 				name: string
 				apiProvider?:
 					| (
+							| "zgsm"
 							| "anthropic"
 							| "glama"
 							| "openrouter"
