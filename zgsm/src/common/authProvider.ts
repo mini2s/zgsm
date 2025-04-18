@@ -101,7 +101,7 @@ export default class Auth0AuthenticationProvider implements AuthenticationProvid
     constructor(private readonly context: ExtensionContext) {
         this._disposable = Disposable.from(
             authentication.registerAuthenticationProvider(AUTH_TYPE, AUTH_NAME, this, { supportsMultipleAccounts: false }),
-            window.registerUriHandler(this._uriHandler)
+            // window.registerUriHandler(this._uriHandler)
         );
     }
 

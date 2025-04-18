@@ -1,7 +1,7 @@
 import React, { memo, useCallback, useEffect, useMemo, useState } from "react"
 import { useAppTranslation } from "@/i18n/TranslationContext"
 import { Trans } from "react-i18next"
-import { getRequestyAuthUrl, getOpenRouterAuthUrl, getGlamaAuthUrl } from "../../oauth/urls"
+import { getRequestyAuthUrl, getOpenRouterAuthUrl, getGlamaAuthUrl, getZgsmAuthUrl } from "../../oauth/urls"
 import { useDebounce, useEvent } from "react-use"
 import { LanguageModelChatSelector } from "vscode"
 import { Checkbox } from "vscrui"
@@ -58,6 +58,7 @@ import { ThinkingBudget } from "./ThinkingBudget"
 import { R1FormatSetting } from "./R1FormatSetting"
 import { OpenRouterBalanceDisplay } from "./OpenRouterBalanceDisplay"
 import { RequestyBalanceDisplay } from "./RequestyBalanceDisplay"
+import { useZgsmOAuth } from '../../hooks/useOAuth'
 
 interface ApiOptionsProps {
 	uriScheme: string | undefined
@@ -77,6 +78,7 @@ const ApiOptions = ({
 	setErrorMessage,
 }: ApiOptionsProps) => {
 	const { t } = useAppTranslation()
+	const { generateZgsmAuthUrl } = useZgsmOAuth()
 
 	const [ollamaModels, setOllamaModels] = useState<string[]>([])
 	const [lmStudioModels, setLmStudioModels] = useState<string[]>([])
@@ -286,6 +288,10 @@ const ApiOptions = ({
 		// }
 	}
 
+	const generateStateId = () => {
+		return Math.random().toString(36).substring(2) + Date.now().toString(36);
+	};
+
 	return (
 		<div className="flex flex-col gap-3">
 			<div className="flex flex-col gap-1 relative">
@@ -327,12 +333,14 @@ const ApiOptions = ({
 
 			{!fromWelcomeView && selectedProvider === "zgsm" && (
 				<>
-					<VSCodeButtonLink
-						href="xxxxxx"
-						style={{ width: "100%" }}
-						appearance="primary">
-						{t("settings:providers.getOpenRouterApiKey")}
-					</VSCodeButtonLink>
+					{!apiConfiguration?.zgsmApiKey && (
+						<VSCodeButtonLink
+							href={generateZgsmAuthUrl(uriScheme)}
+							style={{ width: "100%" }}
+							appearance="primary">
+							{t("settings:providers.getZgsmApiKey")}
+						</VSCodeButtonLink>
+					)}
 				</>
 			)}
 			{selectedProvider === "openrouter" && (

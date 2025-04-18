@@ -8,6 +8,7 @@ import { Tab, TabContent } from "../common/Tab"
 import { useAppTranslation } from "../../i18n/TranslationContext"
 import { getRequestyAuthUrl, getOpenRouterAuthUrl } from "../../oauth/urls"
 import knuthShuffle from "knuth-shuffle-seeded"
+import { initiateZgsmLogin } from "../../utils/zgsmAuth"
 
 const WelcomeView = () => {
 	const { apiConfiguration, currentApiConfigName, setApiConfiguration, uriScheme, machineId } = useExtensionState()
@@ -15,28 +16,23 @@ const WelcomeView = () => {
 	const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined)
 
 	const handleSubmit = useCallback(() => {
-
 		const error = validateApiConfiguration(apiConfiguration)
 
 		if (error) {
 			setErrorMessage(error)
 			return
 		}
-		console.log('登陆校验');
+		
 		setErrorMessage(undefined)
 		
 		if (apiConfiguration?.apiProvider === 'zgsm') {
-			// todo: 登陆校验
-			// 自动创建配置
-			
-			// vscode.postMessage({ type: "loginlogin", text: '假装登陆了' })
-			vscode.postMessage({ type: "upsertApiConfiguration", text: 'zgsm', apiConfiguration })
-			return;
+			// 发起 ZGSM 登录流程
+			initiateZgsmLogin(apiConfiguration, uriScheme);
 		} else {
 			vscode.postMessage({ type: "upsertApiConfiguration", text: currentApiConfigName, apiConfiguration })
 		}
 
-	}, [apiConfiguration, currentApiConfigName])
+	}, [apiConfiguration, currentApiConfigName, uriScheme])
 
 	// Using a lazy initializer so it reads once at mount
 	const [imagesBaseUri] = useState(() => {
@@ -50,8 +46,8 @@ const WelcomeView = () => {
 				<h2 className="m-0 p-0">{t("welcome:greeting")}</h2>
 				<div>{t("welcome:introduction")}</div>
 				<div>{t("welcome:chooseProvider")}</div>
-
 				<div className="mb-4">
+				{apiConfiguration?.apiProvider !== 'zgsm' && (<>
 					<h4 className="mt-3 mb-2">{t("welcome:startRouter")}</h4>
 
 					<div className="flex gap-4">
@@ -109,6 +105,7 @@ const WelcomeView = () => {
 
 					<div className="text-center my-4">{t("welcome:or")}</div>
 					<h4 className="mt-3 mb-2">{t("welcome:startCustom")}</h4>
+				</>) }
 					<ApiOptions
 						fromWelcomeView
 						apiConfiguration={apiConfiguration || {}}

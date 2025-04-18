@@ -10,7 +10,7 @@ export type AudioType = "notification" | "celebration" | "progress_loop"
 
 export interface WebviewMessage {
 	type:
-		| "loginlogin" // todo: test
+		| "zgsmLogin" // todo: test
 		| "apiConfiguration"
 		| "deleteMultipleTasksWithIds"
 		| "currentApiConfigName"
@@ -146,6 +146,7 @@ export interface WebviewMessage {
 	source?: "global" | "project"
 	requestId?: string
 	ids?: string[]
+	authUrl?: string
 }
 
 export const checkoutDiffPayloadSchema = z.object({
