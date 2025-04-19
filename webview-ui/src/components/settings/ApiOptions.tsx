@@ -1,7 +1,7 @@
 import React, { memo, useCallback, useEffect, useMemo, useState } from "react"
 import { useAppTranslation } from "@/i18n/TranslationContext"
 import { Trans } from "react-i18next"
-import { getRequestyAuthUrl, getOpenRouterAuthUrl, getGlamaAuthUrl, getZgsmAuthUrl } from "../../oauth/urls"
+import { getRequestyAuthUrl, getOpenRouterAuthUrl, getGlamaAuthUrl } from "../../oauth/urls"
 import { useDebounce, useEvent } from "react-use"
 import { LanguageModelChatSelector } from "vscode"
 import { Checkbox } from "vscrui"
@@ -58,7 +58,7 @@ import { ThinkingBudget } from "./ThinkingBudget"
 import { R1FormatSetting } from "./R1FormatSetting"
 import { OpenRouterBalanceDisplay } from "./OpenRouterBalanceDisplay"
 import { RequestyBalanceDisplay } from "./RequestyBalanceDisplay"
-import { useZgsmOAuth } from '../../hooks/useOAuth'
+import { useZgsmOAuth } from "../../hooks/useOAuth"
 
 interface ApiOptionsProps {
 	uriScheme: string | undefined
@@ -253,28 +253,26 @@ const ApiOptions = ({
 	)
 
 	// Base URL for provider documentation
-	const DOC_BASE_URL = "https://docs.roocode.com/providers"
+	// const DOC_BASE_URL = "https://docs.roocode.com/providers"
 
 	// Custom URL path mappings for providers with different slugs
-	const providerUrlSlugs: Record<string, string> = {
-		"openai-native": "openai",
-		openai: "openai-compatible",
-	}
+	// const providerUrlSlugs: Record<string, string> = {
+	// 	"openai-native": "openai",
+	// 	openai: "openai-compatible",
+	// }
 
 	// Helper function to get provider display name from PROVIDERS constant
-	const getProviderDisplayName = (providerKey: string): string | undefined => {
-		const provider = PROVIDERS.find((p) => p.value === providerKey)
-		return provider?.label
-	}
+	// const getProviderDisplayName = (providerKey: string): string | undefined => {
+	// 	const provider = PROVIDERS.find((p) => p.value === providerKey)
+	// 	return provider?.label
+	// }
 
 	// Helper function to get the documentation URL and name for the currently selected provider
 	const getSelectedProviderDocUrl = (): { url: string; name: string } | undefined => {
-		const displayName = getProviderDisplayName(selectedProvider)
-		
-		console.log('displayName', displayName);
-		
+		// const displayName = getProviderDisplayName(selectedProvider)
+
 		// zgsm todo: update docs url
-		return undefined; 
+		return undefined
 		// if (!displayName) {
 		// 	return undefined
 		// }
@@ -287,10 +285,6 @@ const ApiOptions = ({
 		// 	name: displayName,
 		// }
 	}
-
-	const generateStateId = () => {
-		return Math.random().toString(36).substring(2) + Date.now().toString(36);
-	};
 
 	return (
 		<div className="flex flex-col gap-3">
@@ -330,17 +324,18 @@ const ApiOptions = ({
 			</div>
 
 			{errorMessage && <ApiErrorMessage errorMessage={errorMessage} />}
-
 			{!fromWelcomeView && selectedProvider === "zgsm" && (
 				<>
-					{!apiConfiguration?.zgsmApiKey && (
-						<VSCodeButtonLink
-							href={generateZgsmAuthUrl(uriScheme)}
-							style={{ width: "100%" }}
-							appearance="primary">
-							{t("settings:providers.getZgsmApiKey")}
-						</VSCodeButtonLink>
-					)}
+					<VSCodeButtonLink
+						href={generateZgsmAuthUrl(uriScheme)}
+						style={{ width: "100%" }}
+						appearance="primary">
+						{t(
+							!apiConfiguration?.zgsmApiKey
+								? "settings:providers.getZgsmApiKey"
+								: "settings:providers.getZgsmApiKeyAgain",
+						)}
+					</VSCodeButtonLink>
 				</>
 			)}
 			{selectedProvider === "openrouter" && (
@@ -1703,7 +1698,6 @@ const ApiOptions = ({
 }
 
 export function normalizeApiConfiguration(apiConfiguration?: ApiConfiguration) {
-	// debugger
 	const provider = apiConfiguration?.apiProvider || "zgsm"
 	const modelId = apiConfiguration?.zgsmModelId || "deepseek-chat"
 	const zgsmApiConfiguration = {

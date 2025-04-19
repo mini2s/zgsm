@@ -24,6 +24,9 @@ type ProviderSettings = {
 				| "fake-ai"
 		  )
 		| undefined
+	zgsmBaseUrl?: string | undefined
+	zgsmApiKey?: string | undefined
+	zgsmModelId?: string | undefined
 	apiModelId?: string | undefined
 	apiKey?: string | undefined
 	anthropicBaseUrl?: string | undefined

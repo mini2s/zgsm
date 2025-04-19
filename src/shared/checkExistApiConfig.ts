@@ -1,7 +1,7 @@
 import { SECRET_STATE_KEYS, ProviderSettings } from "../schemas"
 
 export function checkExistKey(config: ProviderSettings | undefined) {
-	console.log('checkExistKey', config);
+	console.log("checkExistKey", config)
 	if (!config) {
 		return false
 	}
@@ -12,7 +12,7 @@ export function checkExistKey(config: ProviderSettings | undefined) {
 	}
 	// Check all secret keys from the centralized SECRET_STATE_KEYS array.
 	const hasSecretKey = SECRET_STATE_KEYS.some((key) => config[key] !== undefined)
-	
+
 	// Check additional non-secret configuration properties
 	const hasOtherConfig = [
 		config.awsRegion,
@@ -21,11 +21,6 @@ export function checkExistKey(config: ProviderSettings | undefined) {
 		config.lmStudioModelId,
 		config.vsCodeLmModelSelector,
 	].some((value) => value !== undefined)
-	
-	if (config.apiProvider === "zgsm" && config.apiKey) {
-	// if (config.apiProvider === "zgsm") {
-		return true;
-	}
-	
+
 	return hasSecretKey || hasOtherConfig
 }

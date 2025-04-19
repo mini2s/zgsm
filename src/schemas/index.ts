@@ -650,6 +650,7 @@ export type RooCodeSettings = GlobalSettings & ProviderSettings
 export type SecretState = Pick<
 	ProviderSettings,
 	| "apiKey"
+	| "zgsmApiKey"
 	| "glamaApiKey"
 	| "openRouterApiKey"
 	| "awsAccessKey"
@@ -668,6 +669,7 @@ type SecretStateRecord = Record<Keys<SecretState>, undefined>
 
 const secretStateRecord: SecretStateRecord = {
 	apiKey: undefined,
+	zgsmApiKey: undefined,
 	glamaApiKey: undefined,
 	openRouterApiKey: undefined,
 	awsAccessKey: undefined,

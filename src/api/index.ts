@@ -46,7 +46,6 @@ export function buildApiHandler(configuration: ApiConfiguration): ApiHandler {
 	const { apiProvider, ...options } = configuration
 	switch (apiProvider) {
 		case "zgsm":
-			// debugger
 			return new ZgsmHandler(options)
 		case "anthropic":
 			return new AnthropicHandler(options)

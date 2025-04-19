@@ -7,9 +7,9 @@ export class ZgsmHandler extends OpenAiHandler {
 	constructor(options: OpenAiHandlerOptions) {
 		super({
 			...options,
-			openAiApiKey: options.deepSeekApiKey ?? "not-provided",
-			openAiModelId: options.apiModelId ?? "deepseek-chat",
-			openAiBaseUrl: options.deepSeekBaseUrl ?? "https://zgsm.sangfor.com",
+			openAiApiKey: options.zgsmApiKey ?? "not-provided",
+			openAiModelId: options.zgsmModelId ?? "deepseek-chat",
+			openAiBaseUrl: options.zgsmBaseUrl ?? "https://zgsm.sangfor.com",
 			openAiStreamingEnabled: true,
 			includeMaxTokens: true,
 		})
@@ -17,7 +17,7 @@ export class ZgsmHandler extends OpenAiHandler {
 
 	override getModel(): { id: string; info: ModelInfo } {
 		const modelId = this.options.apiModelId ?? "deepseek-chat"
-		const info = deepSeekModels[modelId as keyof typeof deepSeekModels] || deepSeekModels[deepSeekDefaultModelId]
+		const info = deepSeekModels[modelId as keyof typeof deepSeekModels] || deepSeekModels["deepseek-chat"]
 
 		return {
 			id: modelId,
