@@ -51,7 +51,7 @@ import { telemetryService } from "../../services/telemetry/TelemetryService"
 import { getWorkspacePath } from "../../utils/path"
 import { webviewMessageHandler } from "./webviewMessageHandler"
 import { WebviewMessage } from "../../shared/WebviewMessage"
-import { afterZgsmPostLogin, getZgsmAccessToken } from "../../zgsmAuth/zgsmAuthHandler"
+import { getZgsmAccessToken } from "../../zgsmAuth/zgsmAuthHandler"
 import { defaultZgsmAuthConfig } from "../../zgsmAuth/config"
 import { CompletionStatusBar } from "../../../zgsm/src/codeCompletion/completionStatusBar"
 
@@ -1113,12 +1113,7 @@ export class ClineProvider extends EventEmitter<ClineProviderEvents> implements 
 			isZgsmApiKeyValid: true,
 		}
 
-		await afterZgsmPostLogin({
-			apiConfiguration: newConfiguration,
-			provider: this,
-			accessToken: apiKey,
-			configName: currentApiConfigName,
-		})
+		await this.upsertProviderProfile(currentApiConfigName, newConfiguration)
 		vscode.window.showInformationMessage("Shenma login successful")
 
 		CompletionStatusBar.complete()

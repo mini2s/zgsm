@@ -15,18 +15,13 @@ import { convertToSimpleMessages } from "../transform/simple-format"
 import { ApiStream, ApiStreamUsageChunk } from "../transform/stream"
 import { BaseProvider } from "./base-provider"
 import { XmlMatcher } from "../../utils/xml-matcher"
-import { DEEP_SEEK_DEFAULT_TEMPERATURE } from "./constants"
-import { createHeaders } from "../../zgsmAuth/zgsmAuthHandler"
+import { DEFAULT_HEADERS, DEEP_SEEK_DEFAULT_TEMPERATURE } from "./constants"
 
-export const defaultHeaders = {
-	"HTTP-Referer": "https://github.com/RooVetGit/Roo-Cline",
-	"X-Title": "Roo Code",
-}
+export const AZURE_AI_INFERENCE_PATH = "/models/chat/completions"
 
 export interface OpenAiHandlerOptions extends ApiHandlerOptions {}
 let modelsCache = new WeakRef<string[]>([])
 let defaultModelCache: string | undefined = "deepseek-v3"
-const AZURE_AI_INFERENCE_PATH = "/models/chat/completions"
 
 export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler {
 	protected options: OpenAiHandlerOptions
@@ -42,12 +37,17 @@ export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler
 		const urlHost = this._getUrlHost(this.options.zgsmBaseUrl || this.options.zgsmDefaultBaseUrl)
 		const isAzureOpenAi = urlHost === "azure.com" || urlHost.endsWith(".azure.com") || options.openAiUseAzure
 
+		const headers = {
+			...DEFAULT_HEADERS,
+			...(this.options.openAiHeaders || {}),
+		}
+
 		if (isAzureAiInference) {
 			// Azure AI Inference Service (e.g., for DeepSeek) uses a different path structure
 			this.client = new OpenAI({
 				baseURL,
 				apiKey,
-				defaultHeaders,
+				defaultHeaders: headers,
 				defaultQuery: { "api-version": this.options.azureApiVersion || "2024-05-01-preview" },
 			})
 		} else if (isAzureOpenAi) {
@@ -57,19 +57,13 @@ export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler
 				baseURL,
 				apiKey,
 				apiVersion: this.options.azureApiVersion || azureOpenAiDefaultApiVersion,
-				defaultHeaders: {
-					...defaultHeaders,
-					...(this.options.openAiHostHeader ? { Host: this.options.openAiHostHeader } : {}),
-				},
+				defaultHeaders: headers,
 			})
 		} else {
 			this.client = new OpenAI({
 				baseURL,
 				apiKey,
-				defaultHeaders: {
-					...defaultHeaders,
-					...(this.options.openAiHostHeader ? { Host: this.options.openAiHostHeader } : {}),
-				},
+				defaultHeaders: headers,
 			})
 		}
 	}
@@ -81,9 +75,9 @@ export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler
 		const enabledR1Format = this.options.openAiR1FormatEnabled ?? false
 		const enabledLegacyFormat = this.options.openAiLegacyFormat ?? false
 		const isAzureAiInference = this._isAzureAiInference(modelUrl)
-		// const urlHost = this._getUrlHost(modelUrl)
 		const deepseekReasoner = modelId.includes("deepseek-reasoner") || enabledR1Format
 		const ark = modelUrl.includes(".volces.com")
+
 		if (modelId.startsWith("o3-mini")) {
 			yield* this.handleO3FamilyMessage(modelId, systemPrompt, messages)
 			return
@@ -96,6 +90,7 @@ export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler
 			}
 
 			let convertedMessages
+
 			if (deepseekReasoner) {
 				convertedMessages = convertToR1Format([{ role: "user", content: systemPrompt }, ...messages])
 			} else if (ark || enabledLegacyFormat) {
@@ -114,16 +109,20 @@ export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler
 						],
 					}
 				}
+
 				convertedMessages = [systemMessage, ...convertToOpenAiMessages(messages)]
+
 				if (modelInfo.supportsPromptCache) {
 					// Note: the following logic is copied from openrouter:
 					// Add cache_control to the last two user messages
 					// (note: this works because we only ever add one user message at a time, but if we added multiple we'd need to mark the user message before the last assistant message)
 					const lastTwoUserMessages = convertedMessages.filter((msg) => msg.role === "user").slice(-2)
+
 					lastTwoUserMessages.forEach((msg) => {
 						if (typeof msg.content === "string") {
 							msg.content = [{ type: "text", text: msg.content }]
 						}
+
 						if (Array.isArray(msg.content)) {
 							// NOTE: this is fine since env details will always be added at the end. but if it weren't there, and the user added a image_url type message, it would pop a text part before it and then move it after to the end.
 							let lastTextPart = msg.content.filter((part) => part.type === "text").pop()
@@ -132,6 +131,7 @@ export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler
 								lastTextPart = { type: "text", text: "..." }
 								msg.content.push(lastTextPart)
 							}
+
 							// @ts-ignore-next-line
 							lastTextPart["cache_control"] = { type: "ephemeral" }
 						}
@@ -139,13 +139,17 @@ export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler
 				}
 			}
 
+			const isGrokXAI = this._isGrokXAI(this.options.openAiBaseUrl)
+
 			const requestOptions: OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming = {
 				model: modelId,
 				temperature: this.options.modelTemperature ?? (deepseekReasoner ? DEEP_SEEK_DEFAULT_TEMPERATURE : 0),
 				messages: convertedMessages,
 				stream: true as const,
-				stream_options: { include_usage: true },
+				...(isGrokXAI ? {} : { stream_options: { include_usage: true } }),
+				reasoning_effort: this.getModel().info.reasoningEffort,
 			}
+
 			if (this.options.includeMaxTokens) {
 				requestOptions.max_tokens = modelInfo.maxTokens
 			}
@@ -185,6 +189,7 @@ export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler
 					lastUsage = chunk.usage
 				}
 			}
+
 			for (const chunk of matcher.final()) {
 				yield chunk
 			}
@@ -217,6 +222,7 @@ export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler
 				type: "text",
 				text: response.choices[0]?.message.content || "",
 			}
+
 			yield this.processUsageMetrics(response.usage, modelInfo)
 		}
 	}
@@ -252,11 +258,13 @@ export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler
 				requestOptions,
 				isAzureAiInference ? { path: AZURE_AI_INFERENCE_PATH } : {},
 			)
+
 			return response.choices[0]?.message.content || ""
 		} catch (error) {
 			if (error instanceof Error) {
 				throw new Error(`OpenAI completion error: ${error.message}`)
 			}
+
 			throw error
 		}
 	}
@@ -266,10 +274,11 @@ export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler
 		systemPrompt: string,
 		messages: Anthropic.Messages.MessageParam[],
 	): ApiStream {
+		const url = this.options.zgsmBaseUrl || this.options.zgsmDefaultBaseUrl
 		if (this.options.openAiStreamingEnabled ?? true) {
-			const methodIsAzureAiInference = this._isAzureAiInference(
-				this.options.zgsmBaseUrl || this.options.zgsmDefaultBaseUrl,
-			)
+			const methodIsAzureAiInference = this._isAzureAiInference(url)
+
+			const isGrokXAI = this._isGrokXAI(url)
 
 			const stream = await this.client.chat.completions.create(
 				{
@@ -282,7 +291,7 @@ export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler
 						...convertToOpenAiMessages(messages),
 					],
 					stream: true,
-					stream_options: { include_usage: true },
+					...(isGrokXAI ? {} : { stream_options: { include_usage: true } }),
 					reasoning_effort: this.getModel().info.reasoningEffort,
 				},
 				methodIsAzureAiInference ? { path: AZURE_AI_INFERENCE_PATH } : {},
@@ -301,9 +310,7 @@ export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler
 				],
 			}
 
-			const methodIsAzureAiInference = this._isAzureAiInference(
-				this.options.zgsmBaseUrl || this.options.zgsmDefaultBaseUrl,
-			)
+			const methodIsAzureAiInference = this._isAzureAiInference(url)
 
 			const response = await this.client.chat.completions.create(
 				requestOptions,
@@ -337,6 +344,7 @@ export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler
 			}
 		}
 	}
+
 	private _getUrlHost(baseUrl?: string): string {
 		try {
 			return new URL(baseUrl ?? "").host
@@ -345,68 +353,55 @@ export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler
 		}
 	}
 
+	private _isGrokXAI(baseUrl?: string): boolean {
+		const urlHost = this._getUrlHost(baseUrl)
+		return urlHost.includes("x.ai")
+	}
+
 	private _isAzureAiInference(baseUrl?: string): boolean {
 		const urlHost = this._getUrlHost(baseUrl)
 		return urlHost.endsWith(".services.ai.azure.com")
 	}
 }
 
-const canParseURL = (url: string): boolean => {
-	// if the URL constructor is available, use it to check if the URL is valid
-	if (typeof URL.canParse === "function") {
-		return URL.canParse(url)
-	}
-
-	try {
-		new URL(url)
-		return true
-	} catch {
-		return false
-	}
-}
-
 export async function getZgsmModels(
 	baseUrl?: string,
 	apiKey?: string,
-	hostHeader?: string,
+	openAiHeaders?: Record<string, string>,
 ): Promise<[string[] | undefined, string | undefined, (AxiosError | undefined)?]> {
-	if (!baseUrl) {
-		return [[], undefined]
-	}
-
-	if (!canParseURL(baseUrl)) {
-		return [[], undefined]
-	}
-
-	const config: Record<string, any> = {}
-	const headers: Record<string, string> = createHeaders({})
-
-	if (apiKey) {
-		headers["Authorization"] = `Bearer ${apiKey}`
-	}
-
-	if (hostHeader) {
-		headers["Host"] = hostHeader
-	}
-
-	if (Object.keys(headers).length > 0) {
-		config["headers"] = headers
-	}
-
 	let errorObj: AxiosError | undefined
 
 	try {
-		const response = await axios.get(`${baseUrl}/v1/models`, config)
-		console.log('response', response);
-		
-		const modelsArray = response.data?.data?.map((model: any) => model.id) || []
+		if (!baseUrl) {
+			return [modelsCache?.deref?.(), defaultModelCache]
+		}
 
+		if (!URL.canParse(baseUrl)) {
+			return [modelsCache?.deref?.(), defaultModelCache]
+		}
+
+		const config: Record<string, any> = {}
+		const headers: Record<string, string> = {
+			...DEFAULT_HEADERS,
+			...(openAiHeaders || {}),
+		}
+
+		if (apiKey) {
+			headers["Authorization"] = `Bearer ${apiKey}`
+		}
+
+		if (Object.keys(headers).length > 0) {
+			config["headers"] = headers
+		}
+
+		const response = await axios.get(`${baseUrl}/v1/models`, config)
+		const modelsArray = response.data?.data?.map((model: any) => model.id) || []
 		modelsCache = new WeakRef([...new Set<string>(modelsArray)])
 		defaultModelCache = modelsArray[0]
 	} catch (error) {
 		errorObj = error
 		console.error("Error fetching ZGSM models", error)
 	} finally {
-		return [modelsCache.deref(), defaultModelCache, errorObj ? errorObj : undefined]
+		return [modelsCache.deref(), defaultModelCache, errorObj]
 	}
 }

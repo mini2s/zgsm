@@ -77,7 +77,7 @@ export async function afterZgsmPostLogin({
 		const [zgsmModels, zgsmDefaultModelId, err] = await getZgsmModels(
 			apiConfiguration.zgsmBaseUrl || defaultZgsmAuthConfig.baseUrl,
 			accessToken,
-			apiConfiguration.openAiHostHeader,
+			apiConfiguration.openAiHeaders,
 		)
 
 		await provider.upsertProviderProfile(configName, {
