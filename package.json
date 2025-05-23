@@ -332,6 +332,14 @@
 				{
 					"command": "zgsm.terminalExplainCommand",
 					"group": "1_actions@3"
+				},
+				{
+					"command": "zgsm.terminalFixCommandInCurrentTask",
+					"group": "1_actions@5"
+				},
+				{
+					"command": "zgsm.terminalExplainCommandInCurrentTask",
+					"group": "1_actions@6"
 				}
 			],
 			"view/title": [

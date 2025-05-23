@@ -8,6 +8,8 @@ mock/
 
 .DS_Store
 
+.history
+
 # IDEs
 .idea
 
