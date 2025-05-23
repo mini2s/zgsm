@@ -9,18 +9,6 @@ export const registerTerminalActions = (context: vscode.ExtensionContext) => {
 	registerTerminalAction(context, "terminalAddToContext", "TERMINAL_ADD_TO_CONTEXT")
 	registerTerminalAction(context, "terminalFixCommand", "TERMINAL_FIX")
 	registerTerminalAction(context, "terminalExplainCommand", "TERMINAL_EXPLAIN")
-	registerTerminalAction(
-		context,
-		"terminalFixCommandInCurrentTask",
-		"TERMINAL_FIX",
-		"What would you like Roo to fix?",
-	)
-	registerTerminalAction(
-		context,
-		"terminalExplainCommandInCurrentTask",
-		"TERMINAL_EXPLAIN",
-		"What would you like Roo to explain?",
-	)
 }
 
 const registerTerminalAction = (

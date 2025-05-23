@@ -65,13 +65,7 @@ export type CodeActionName =
  * TerminalAction
  */
 
-export const terminalActionIds = [
-	"terminalAddToContext",
-	"terminalFixCommand",
-	"terminalExplainCommand",
-	"terminalFixCommandInCurrentTask",
-	"terminalExplainCommandInCurrentTask",
-] as const
+export const terminalActionIds = ["terminalAddToContext", "terminalFixCommand", "terminalExplainCommand"] as const
 
 export type TerminalActionId = (typeof terminalActionIds)[number]
 
