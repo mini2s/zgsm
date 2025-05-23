@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect } from "react"
 import { useEvent } from "react-use"
 import { Checkbox } from "vscrui"
+import { vscode } from "@src/utils/vscode"
+
 import { VSCodeButton, VSCodeTextField } from "@vscode/webview-ui-toolkit/react"
 import { convertHeadersToObject } from "../utils/headers"
 
@@ -15,7 +17,6 @@ import { inputEventTransform, noTransform } from "../transforms"
 import { ModelPicker } from "../ModelPicker"
 import { R1FormatSetting } from "../R1FormatSetting"
 import { ReasoningEffort } from "../ReasoningEffort"
-import { initiateZgsmLogin } from "@/utils/zgsmAuth"
 
 type OpenAICompatibleProps = {
 	apiConfiguration: ProviderSettings
@@ -28,6 +29,7 @@ export const ZgsmAI = ({
 	apiConfiguration,
 	setApiConfigurationField,
 	fromWelcomeView,
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	uriScheme,
 }: OpenAICompatibleProps) => {
 	const { t } = useAppTranslation()
@@ -120,8 +122,11 @@ export const ZgsmAI = ({
 	}, [])
 
 	const handleSubmit = useCallback(() => {
-		initiateZgsmLogin(apiConfiguration, uriScheme)
-	}, [apiConfiguration, uriScheme])
+		vscode.postMessage({
+			type: "zgsmLogin",
+			apiConfiguration,
+		})
+	}, [apiConfiguration])
 
 	useEvent("message", onMessage)
 
@@ -133,24 +138,27 @@ export const ZgsmAI = ({
 				</div>
 				<div className="flex items-center mb-2">
 					<VSCodeTextField
-						className="flex-1 mr-2"
+						className={!fromWelcomeView ? "flex-1 mr-2" : "w-full"}
 						value={apiConfiguration?.zgsmBaseUrl || ""}
 						type="url"
 						onInput={handleInputChange("zgsmBaseUrl")}
 						placeholder={t("settings:providers.zgsmDefaultBaseUrl", {
 							zgsmBaseUrl: apiConfiguration?.zgsmBaseUrl || apiConfiguration?.zgsmDefaultBaseUrl,
 						})}></VSCodeTextField>
-
-					<VSCodeButton
-						appearance="icon"
-						title={t(
-							!apiConfiguration?.zgsmApiKey
-								? "settings:providers.getZgsmApiKey"
-								: "settings:providers.getZgsmApiKeyAgain",
-						)}
-						onClick={handleSubmit}>
-						<span className="codicon codicon-sign-in"></span>
-					</VSCodeButton>
+					{!fromWelcomeView && (
+						<>
+							<VSCodeButton
+								appearance="icon"
+								title={t(
+									!apiConfiguration?.zgsmApiKey
+										? "settings:providers.getZgsmApiKey"
+										: "settings:providers.getZgsmApiKeyAgain",
+								)}
+								onClick={handleSubmit}>
+								<span className="codicon codicon-sign-in"></span>
+							</VSCodeButton>
+						</>
+					)}
 				</div>
 			</div>
 

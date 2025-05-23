@@ -1,20 +1,16 @@
-// import { getZgsmModels } from "../api/providers/zgsm"
 import { ClineProvider } from "../core/webview/ClineProvider"
 
 class DefaultZgsmAuthConfig {
 	static URL_TEMPLATES = {
-		loginUrlTpl: "/realms/gw/protocol/openid-connect/auth",
-		logoutUrlTpl: "/realms/gw/protocol/openid-connect/logout",
-		tokenUrlTpl: "/realms/gw/protocol/openid-connect/token",
-		redirectUriTpl: "/login/ok", // Authentication: Callback after successful login
+		loginUrlTpl: "/oidc_auth/plugin/login",
+		logoutUrlTpl: "/oidc_auth/plugin/logout",
+		tokenUrlTpl: "/oidc_auth/plugin/login/status",
 	}
 
-	prevBaseUrl: string
 	baseUrl: string
 	zgsmSite: string
 	clientId: string
 	clientSecret: string
-	redirectUri: string
 	tokenUrl: string
 	loginUrl: string
 	logoutUrl: string
@@ -25,7 +21,6 @@ class DefaultZgsmAuthConfig {
 
 	constructor() {
 		this.baseUrl = "https://zgsm.sangfor.com"
-		this.prevBaseUrl = this.baseUrl
 		this.zgsmSite = "https://zgsm.ai"
 		this.clientId = "vscode"
 		this.clientSecret = "jFWyVy9wUKKSkX55TDBt2SuQWl7fDM1l"
@@ -34,56 +29,20 @@ class DefaultZgsmAuthConfig {
 		this.loginUrl = DefaultZgsmAuthConfig.URL_TEMPLATES.loginUrlTpl
 		this.logoutUrl = DefaultZgsmAuthConfig.URL_TEMPLATES.logoutUrlTpl
 		this.tokenUrl = DefaultZgsmAuthConfig.URL_TEMPLATES.tokenUrlTpl
-		this.redirectUri = DefaultZgsmAuthConfig.URL_TEMPLATES.redirectUriTpl
 		this.isZgsmApiKeyValid = true
 	}
 
-	async getAuthUrls(baseUrl = this.baseUrl) {
-		baseUrl = baseUrl || this.baseUrl
-		const config = {} as {
-			redirectUri?: string
-			tokenUrl?: string
-			loginUrl?: string
-			logoutUrl?: string
-		}
-
-		if (this.prevBaseUrl !== baseUrl) {
-			Object.assign(config, await this.fetchZgsmAuthConfiguration(baseUrl))
-			this.prevBaseUrl = baseUrl
-		}
-
-		return {
-			redirectUri: config?.redirectUri || `${baseUrl || this.baseUrl}${this.redirectUri}`,
-			tokenUrl: config?.tokenUrl || `${baseUrl || this.baseUrl}${this.tokenUrl}`,
-			loginUrl: config?.loginUrl || `${baseUrl || this.baseUrl}${this.loginUrl}`,
-			logoutUrl: config?.logoutUrl || `${baseUrl || this.baseUrl}${this.logoutUrl}`,
-		}
+	createStateId() {
+		return Math.random().toString(36).substring(2) + Date.now().toString(36)
 	}
 
-	async fetchZgsmAuthConfiguration(baseUrl?: string): Promise<{
-		loginUrl?: string
-		tokenUrl?: string
-		logoutUrl?: string
-		redirectUri?: string
-	}> {
-		try {
-			const response = await fetch(
-				`${baseUrl}/api/configuration?belong_type=authenticate&attribute_key=custom_url`,
-			)
-			// if (!response.ok) {
-			// 	throw new Error(i18next.t("settings:error.failed_to_fetch_auth_url_config") + response.statusText)
-			// }
-			const responseData = await response.json()
-			// if (!responseData.success) {
-			// 	throw new Error(i18next.t("settings:error.failed_to_fetch_auth_url_config") + responseData.message)
-			// }
+	getAuthUrls(baseUrl = this.baseUrl) {
+		const _baseUrl = `${baseUrl}`.trim()
 
-			if (!responseData.data || responseData.data.length === 0) {
-				return {}
-			}
-			return responseData.data[0].attribute_value || {}
-		} catch (error) {
-			return {}
+		return {
+			tokenUrl: `${_baseUrl || this.baseUrl}${this.tokenUrl}`,
+			loginUrl: `${_baseUrl || this.baseUrl}${this.loginUrl}`,
+			logoutUrl: `${_baseUrl || this.baseUrl}${this.logoutUrl}`,
 		}
 	}
 
@@ -100,7 +59,6 @@ class DefaultZgsmAuthConfig {
 			zgsmTokenUrl: this.tokenUrl,
 			zgsmCompletionUrl: this.completionUrl,
 			zgsmDownloadUrl: this.downloadUrl,
-			zgsmRedirectUri: this.redirectUri,
 			zgsmClientId: this.clientId,
 			zgsmClientSecret: this.clientSecret,
 		})

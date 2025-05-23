@@ -9,7 +9,6 @@ export function getZgsmAuthUrl(stateId: string, apiConfiguration?: ApiConfigurat
 	const params = [
 		["response_type", "code"],
 		["client_id", `${apiConfiguration?.zgsmClientId}`],
-		["redirect_uri", `${baseUrl}${apiConfiguration?.zgsmRedirectUri}`],
 		["state", stateId],
 		["scope", scopes.join(" ")],
 	]

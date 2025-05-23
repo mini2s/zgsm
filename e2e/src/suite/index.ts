@@ -32,7 +32,6 @@ export async function run() {
 		zgsmTokenUrl: "/realms/gw/protocol/openid-connect/token",
 		zgsmCompletionUrl: "/v2",
 		zgsmDownloadUrl: "/downloads",
-		zgsmRedirectUri: "/login/ok",
 		zgsmClientId: "vscode",
 		isZgsmApiKeyValid: true,
 	} as unknown as RooCodeSettings)

@@ -79,6 +79,11 @@ export function validateApiConfiguration(apiConfiguration: ProviderSettings): st
 				return i18next.t("settings:validation.modelSelector")
 			}
 			break
+		case "zgsm":
+			if (apiConfiguration?.zgsmBaseUrl && !isValidUrl(apiConfiguration.zgsmBaseUrl)) {
+				return i18next.t("welcome:baseUrlInvalidMsg")
+			}
+			break
 	}
 
 	return undefined

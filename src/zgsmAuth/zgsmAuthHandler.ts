@@ -65,21 +65,14 @@ export function createHeaders(dict: Record<string, any> = {}): Record<string, an
  * @param provider ClineProvider instance
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export async function handleZgsmLogin(
-	authUrl: string,
-	apiConfiguration?: ApiConfiguration,
-	provider?: ClineProvider,
-): Promise<void> {
-	// Open authentication link
-	await vscode.env.openExternal(vscode.Uri.parse(authUrl))
+export async function handleZgsmLogin(apiConfiguration?: ApiConfiguration, provider?: ClineProvider): Promise<void> {
+	const { loginUrl } = defaultZgsmAuthConfig.getAuthUrls(apiConfiguration?.zgsmBaseUrl)
 
-	// Save apiConfiguration for use after successful authentication
+	await vscode.env.openExternal(vscode.Uri.parse(loginUrl))
+
 	if (apiConfiguration) {
 		await provider?.upsertProviderProfile((await provider.getState()).currentApiConfigName, apiConfiguration)
 	}
-
-	// Send message to webview to notify that authentication has started
-	// provider.postMessageToWebview({ type: "state", state: await provider.getStateToPostToWebview() })
 }
 
 /**
@@ -90,7 +83,7 @@ export async function handleZgsmLogin(
  */
 export async function getZgsmAccessToken(code: string, apiConfiguration?: ApiConfiguration) {
 	try {
-		const { redirectUri, tokenUrl } = await defaultZgsmAuthConfig.getAuthUrls(apiConfiguration?.zgsmBaseUrl)
+		const { tokenUrl } = await defaultZgsmAuthConfig.getAuthUrls(apiConfiguration?.zgsmBaseUrl)
 
 		// Prefer configuration in apiConfiguration, if not exist, use environment settings
 		const clientId = apiConfiguration?.zgsmClientId || defaultZgsmAuthConfig.clientId
@@ -102,7 +95,6 @@ export async function getZgsmAccessToken(code: string, apiConfiguration?: ApiCon
 			client_secret: clientSecret,
 			code,
 			grant_type: "authorization_code",
-			redirect_uri: redirectUri,
 		}
 
 		// Use querystring to convert object to application/x-www-form-urlencoded format
@@ -129,3 +121,39 @@ export async function getZgsmAccessToken(code: string, apiConfiguration?: ApiCon
 		throw err
 	}
 }
+
+class ZgsmAuthHandler {
+	createHeaders(dict: Record<string, any> = {}): Record<string, any> {
+		// Get extended information
+		const extension = vscode.extensions.getExtension("zgsm-ai.zgsm")
+		const extVersion = extension?.packageJSON.version || ""
+		const ideVersion = vscode.version || ""
+		const hostIp = getLocalIP()
+
+		const headers = {
+			ide: "vscode",
+			"ide-version": extVersion,
+			"ide-real-version": ideVersion,
+			"host-ip": hostIp,
+			...dict,
+		}
+		return headers
+	}
+
+	async login(apiConfiguration?: ApiConfiguration, provider?: ClineProvider): Promise<void> {
+		const { loginUrl } = defaultZgsmAuthConfig.getAuthUrls(apiConfiguration?.zgsmBaseUrl)
+
+		await vscode.env.openExternal(vscode.Uri.parse(loginUrl))
+
+		// Save apiConfiguration for use after successful authentication
+		if (apiConfiguration) {
+			await provider?.upsertProviderProfile((await provider.getState()).currentApiConfigName, apiConfiguration)
+		}
+	}
+
+	async getLoginInfo() {}
+
+	async logout() {}
+}
+
+export const zgsmAuthHandler = new ZgsmAuthHandler()
