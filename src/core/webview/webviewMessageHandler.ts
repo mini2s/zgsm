@@ -288,11 +288,12 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 			const [initZgsmModels, initZgsmDefaultModelId] = await getZgsmModels(
 				provider?.context?.globalState?.get?.("zgsmBaseUrl") || defaultZgsmAuthConfig.baseUrl,
 			)
+			const modelId = config.zgsmModelId || config.apiModelId || initZgsmDefaultModelId
 
 			await defaultZgsmAuthConfig.initProviderConfig(provider, {
 				zgsmModels: initZgsmModels,
-				zgsmDefaultModelId: initZgsmDefaultModelId,
-				apiModelId: config.apiModelId || initZgsmDefaultModelId,
+				zgsmDefaultModelId: modelId,
+				apiModelId: modelId,
 			})
 			break
 		case "flushRouterModels":
@@ -339,7 +340,10 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 				message?.values?.apiKey,
 				message?.values?.hostHeader,
 			)
-			provider.postMessageToWebview({ type: "zgsmModels", zgsmModels, zgsmDefaultModelId })
+			const { apiConfiguration: requestZgsmConfig } = await provider.getState()
+			const id = requestZgsmConfig.zgsmModelId || requestZgsmConfig.apiModelId || zgsmDefaultModelId
+
+			provider.postMessageToWebview({ type: "zgsmModels", zgsmModels, zgsmDefaultModelId: id })
 
 			break
 		case "requestOllamaModels":

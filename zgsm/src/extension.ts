@@ -46,11 +46,12 @@ async function initialize(provider: ClineProvider) {
 	const [zgsmModels, zgsmDefaultModelId] = await getZgsmModels(
 		provider?.context?.globalState?.get?.("zgsmBaseUrl") || defaultZgsmAuthConfig.baseUrl,
 	)
+	const modelId = apiConfiguration.zgsmModelId || apiConfiguration.apiModelId || zgsmDefaultModelId
 
 	await defaultZgsmAuthConfig.initProviderConfig(provider, {
 		zgsmModels,
-		zgsmDefaultModelId,
-		apiModelId: apiConfiguration.apiModelId || zgsmDefaultModelId,
+		zgsmDefaultModelId: modelId,
+		apiModelId: modelId,
 	})
 }
 
