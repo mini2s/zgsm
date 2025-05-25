@@ -1,4 +1,3 @@
-// import { getZgsmModels } from "../api/providers/zgsm"
 import { ClineProvider } from "../core/webview/ClineProvider"
 
 class DefaultZgsmAuthConfig {

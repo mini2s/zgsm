@@ -9,7 +9,7 @@
 import * as vscode from "vscode"
 import * as fs from "fs"
 import * as path from "path"
-import { SELECTION_BG_COLOR, configCompletion } from "./constant"
+import { configCompletion } from "./constant"
 import { Logger } from "./log-util"
 
 /**
@@ -55,42 +55,6 @@ export async function getWebviewContent(
 }
 
 export let editorSelectionDecoration: vscode.TextEditorDecorationType | undefined
-// /**
-//  * Render background color function
-//  * @param selection The selected text range, optional parameter, default is the current editor's selected range
-//  * @param show Whether to display the background color, default is false
-//  * @returns No return value
-//  * @example
-//  * renderBgColor(); // Clear old rendering
-//  * renderBgColor(selection, true); // Render the background color of the selected text as rgba(38, 79, 120)
-//  */
-// export function renderBgColor(selection: vscode.Selection | undefined, show = false): vscode.Selection | undefined {
-// 	const editor = vscode.window.activeTextEditor
-// 	if (editor) {
-// 		if (editorSelectionDecoration) {
-// 			editor.setDecorations(editorSelectionDecoration, [])
-// 			editorSelectionDecoration = undefined
-// 		}
-// 		if (show) {
-// 			if (!selection) {
-// 				selection = editor.selection
-// 			}
-// 			if (selection) {
-// 				const activeColorThemeKind = vscode.window.activeColorTheme.kind
-// 				const backgroundColor =
-// 					activeColorThemeKind in SELECTION_BG_COLOR
-// 						? SELECTION_BG_COLOR[activeColorThemeKind]
-// 						: SELECTION_BG_COLOR[0]
-// 				editorSelectionDecoration = vscode.window.createTextEditorDecorationType({
-// 					backgroundColor: backgroundColor,
-// 					isWholeLine: true,
-// 				})
-// 				editor.setDecorations(editorSelectionDecoration, [selection])
-// 			}
-// 		}
-// 		return selection
-// 	}
-// }
 
 /**
  * Get all code from startLine to endLine

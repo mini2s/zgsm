@@ -37,6 +37,7 @@ import { getModels, flushModels } from "../../api/providers/fetchers/modelCache"
 import { generateSystemPrompt } from "./generateSystemPrompt"
 import { defaultZgsmAuthConfig } from "../../zgsmAuth/config"
 import { getCommand } from "../../utils/commands"
+import { initZgsmApiConfiguration } from "../../shared/zgsmInitialize"
 
 const ALLOWED_VSCODE_SETTINGS = new Set(["terminal.integrated.inheritEnv"])
 
@@ -283,18 +284,7 @@ export const webviewMessageHandler = async (provider: ClineProvider, message: We
 			break
 		case "resetState":
 			await provider.resetState()
-
-			const { apiConfiguration: config } = await provider.getState()
-			const [initZgsmModels, initZgsmDefaultModelId] = await getZgsmModels(
-				provider?.context?.globalState?.get?.("zgsmBaseUrl") || defaultZgsmAuthConfig.baseUrl,
-			)
-			const modelId = config.zgsmModelId || config.apiModelId || initZgsmDefaultModelId
-
-			await defaultZgsmAuthConfig.initProviderConfig(provider, {
-				zgsmModels: initZgsmModels,
-				zgsmDefaultModelId: modelId,
-				apiModelId: modelId,
-			})
+			await initZgsmApiConfiguration(provider)
 			break
 		case "flushRouterModels":
 			const routerName: RouterName = toRouterName(message.text)
