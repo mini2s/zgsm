@@ -23,7 +23,7 @@ class DefaultZgsmAuthConfig {
 	isZgsmApiKeyValid: boolean
 
 	constructor() {
-		this.baseUrl = "https://zgsm.sangfor.com"
+		this.baseUrl = process.env.ZGSM_BASE_URL || "https://zgsm.sangfor.com"
 		this.prevBaseUrl = this.baseUrl
 		this.zgsmSite = "https://zgsm.ai"
 		this.clientId = "vscode"
