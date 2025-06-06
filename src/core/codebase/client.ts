@@ -83,6 +83,7 @@ export class ZgsmCodeBaseService {
 		const _instance = await ZgsmCodeBaseService.getInstance()
 
 		if (!_instance) return
+		_instance.stopRegisterSyncPoll()
 		_instance.client?.close()
 		_instance.unregisterSync()
 	}
