@@ -35,7 +35,7 @@ export interface ShareAccessTokenRequest {
 	serverEndpoint: string
 }
 
-/** Token sharing response */
+/** Share Token response */
 export interface ShareAccessTokenResponse {
 	success: boolean
 	message: string
@@ -53,7 +53,7 @@ export interface RegisterSyncRequest {
 
 /** Register workspace sync response */
 export interface RegisterSyncResponse {
-	/** Whether successful */
+	/** Whether succeeded */
 	success: boolean
 	/** Message */
 	message: string
@@ -67,6 +67,33 @@ export interface UnregisterSyncRequest {
 	workspacePath: string
 	/** Workspace name */
 	workspaceName: string
+}
+
+/** Version info request */
+export interface VersionRequest {
+	/** Client ID */
+	clientId: string
+}
+
+/** Version info response */
+export interface VersionResponse {
+	/** Whether succeeded */
+	success: boolean
+	/** Message */
+	message: string
+	/** Data */
+	data: VersionResponse_Data | undefined
+}
+
+export interface VersionResponse_Data {
+	/** Version number */
+	version: string
+	/** Application name */
+	appName: string
+	/** OS name */
+	osName: string
+	/** Architecture name */
+	archName: string
 }
 
 function createBaseShareAccessTokenRequest(): ShareAccessTokenRequest {
@@ -497,6 +524,267 @@ export const UnregisterSyncRequest: MessageFns<UnregisterSyncRequest> = {
 	},
 }
 
+function createBaseVersionRequest(): VersionRequest {
+	return { clientId: "" }
+}
+
+export const VersionRequest: MessageFns<VersionRequest> = {
+	encode(message: VersionRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+		if (message.clientId !== "") {
+			writer.uint32(10).string(message.clientId)
+		}
+		return writer
+	},
+
+	decode(input: BinaryReader | Uint8Array, length?: number): VersionRequest {
+		const reader = input instanceof BinaryReader ? input : new BinaryReader(input)
+		let end = length === undefined ? reader.len : reader.pos + length
+		const message = createBaseVersionRequest()
+		while (reader.pos < end) {
+			const tag = reader.uint32()
+			switch (tag >>> 3) {
+				case 1: {
+					if (tag !== 10) {
+						break
+					}
+
+					message.clientId = reader.string()
+					continue
+				}
+			}
+			if ((tag & 7) === 4 || tag === 0) {
+				break
+			}
+			reader.skip(tag & 7)
+		}
+		return message
+	},
+
+	fromJSON(object: any): VersionRequest {
+		return { clientId: isSet(object.clientId) ? globalThis.String(object.clientId) : "" }
+	},
+
+	toJSON(message: VersionRequest): unknown {
+		const obj: any = {}
+		if (message.clientId !== "") {
+			obj.clientId = message.clientId
+		}
+		return obj
+	},
+
+	create<I extends Exact<DeepPartial<VersionRequest>, I>>(base?: I): VersionRequest {
+		return VersionRequest.fromPartial(base ?? ({} as any))
+	},
+	fromPartial<I extends Exact<DeepPartial<VersionRequest>, I>>(object: I): VersionRequest {
+		const message = createBaseVersionRequest()
+		message.clientId = object.clientId ?? ""
+		return message
+	},
+}
+
+function createBaseVersionResponse(): VersionResponse {
+	return { success: false, message: "", data: undefined }
+}
+
+export const VersionResponse: MessageFns<VersionResponse> = {
+	encode(message: VersionResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+		if (message.success !== false) {
+			writer.uint32(8).bool(message.success)
+		}
+		if (message.message !== "") {
+			writer.uint32(18).string(message.message)
+		}
+		if (message.data !== undefined) {
+			VersionResponse_Data.encode(message.data, writer.uint32(26).fork()).join()
+		}
+		return writer
+	},
+
+	decode(input: BinaryReader | Uint8Array, length?: number): VersionResponse {
+		const reader = input instanceof BinaryReader ? input : new BinaryReader(input)
+		let end = length === undefined ? reader.len : reader.pos + length
+		const message = createBaseVersionResponse()
+		while (reader.pos < end) {
+			const tag = reader.uint32()
+			switch (tag >>> 3) {
+				case 1: {
+					if (tag !== 8) {
+						break
+					}
+
+					message.success = reader.bool()
+					continue
+				}
+				case 2: {
+					if (tag !== 18) {
+						break
+					}
+
+					message.message = reader.string()
+					continue
+				}
+				case 3: {
+					if (tag !== 26) {
+						break
+					}
+
+					message.data = VersionResponse_Data.decode(reader, reader.uint32())
+					continue
+				}
+			}
+			if ((tag & 7) === 4 || tag === 0) {
+				break
+			}
+			reader.skip(tag & 7)
+		}
+		return message
+	},
+
+	fromJSON(object: any): VersionResponse {
+		return {
+			success: isSet(object.success) ? globalThis.Boolean(object.success) : false,
+			message: isSet(object.message) ? globalThis.String(object.message) : "",
+			data: isSet(object.data) ? VersionResponse_Data.fromJSON(object.data) : undefined,
+		}
+	},
+
+	toJSON(message: VersionResponse): unknown {
+		const obj: any = {}
+		if (message.success !== false) {
+			obj.success = message.success
+		}
+		if (message.message !== "") {
+			obj.message = message.message
+		}
+		if (message.data !== undefined) {
+			obj.data = VersionResponse_Data.toJSON(message.data)
+		}
+		return obj
+	},
+
+	create<I extends Exact<DeepPartial<VersionResponse>, I>>(base?: I): VersionResponse {
+		return VersionResponse.fromPartial(base ?? ({} as any))
+	},
+	fromPartial<I extends Exact<DeepPartial<VersionResponse>, I>>(object: I): VersionResponse {
+		const message = createBaseVersionResponse()
+		message.success = object.success ?? false
+		message.message = object.message ?? ""
+		message.data =
+			object.data !== undefined && object.data !== null
+				? VersionResponse_Data.fromPartial(object.data)
+				: undefined
+		return message
+	},
+}
+
+function createBaseVersionResponse_Data(): VersionResponse_Data {
+	return { version: "", appName: "", osName: "", archName: "" }
+}
+
+export const VersionResponse_Data: MessageFns<VersionResponse_Data> = {
+	encode(message: VersionResponse_Data, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+		if (message.version !== "") {
+			writer.uint32(10).string(message.version)
+		}
+		if (message.appName !== "") {
+			writer.uint32(18).string(message.appName)
+		}
+		if (message.osName !== "") {
+			writer.uint32(26).string(message.osName)
+		}
+		if (message.archName !== "") {
+			writer.uint32(34).string(message.archName)
+		}
+		return writer
+	},
+
+	decode(input: BinaryReader | Uint8Array, length?: number): VersionResponse_Data {
+		const reader = input instanceof BinaryReader ? input : new BinaryReader(input)
+		let end = length === undefined ? reader.len : reader.pos + length
+		const message = createBaseVersionResponse_Data()
+		while (reader.pos < end) {
+			const tag = reader.uint32()
+			switch (tag >>> 3) {
+				case 1: {
+					if (tag !== 10) {
+						break
+					}
+
+					message.version = reader.string()
+					continue
+				}
+				case 2: {
+					if (tag !== 18) {
+						break
+					}
+
+					message.appName = reader.string()
+					continue
+				}
+				case 3: {
+					if (tag !== 26) {
+						break
+					}
+
+					message.osName = reader.string()
+					continue
+				}
+				case 4: {
+					if (tag !== 34) {
+						break
+					}
+
+					message.archName = reader.string()
+					continue
+				}
+			}
+			if ((tag & 7) === 4 || tag === 0) {
+				break
+			}
+			reader.skip(tag & 7)
+		}
+		return message
+	},
+
+	fromJSON(object: any): VersionResponse_Data {
+		return {
+			version: isSet(object.version) ? globalThis.String(object.version) : "",
+			appName: isSet(object.appName) ? globalThis.String(object.appName) : "",
+			osName: isSet(object.osName) ? globalThis.String(object.osName) : "",
+			archName: isSet(object.archName) ? globalThis.String(object.archName) : "",
+		}
+	},
+
+	toJSON(message: VersionResponse_Data): unknown {
+		const obj: any = {}
+		if (message.version !== "") {
+			obj.version = message.version
+		}
+		if (message.appName !== "") {
+			obj.appName = message.appName
+		}
+		if (message.osName !== "") {
+			obj.osName = message.osName
+		}
+		if (message.archName !== "") {
+			obj.archName = message.archName
+		}
+		return obj
+	},
+
+	create<I extends Exact<DeepPartial<VersionResponse_Data>, I>>(base?: I): VersionResponse_Data {
+		return VersionResponse_Data.fromPartial(base ?? ({} as any))
+	},
+	fromPartial<I extends Exact<DeepPartial<VersionResponse_Data>, I>>(object: I): VersionResponse_Data {
+		const message = createBaseVersionResponse_Data()
+		message.version = object.version ?? ""
+		message.appName = object.appName ?? ""
+		message.osName = object.osName ?? ""
+		message.archName = object.archName ?? ""
+		return message
+	},
+}
+
 /** Sync service definition */
 export type SyncServiceService = typeof SyncServiceService
 export const SyncServiceService = {
@@ -520,7 +808,7 @@ export const SyncServiceService = {
 		responseSerialize: (value: Empty) => Buffer.from(Empty.encode(value).finish()),
 		responseDeserialize: (value: Buffer) => Empty.decode(value),
 	},
-	/** Share AccessToken (plaintext transmission, server-side encrypted storage) */
+	/** Share AccessToken (transmitted in plaintext, server-side encrypted storage) */
 	shareAccessToken: {
 		path: "/codebase_syncer.SyncService/ShareAccessToken",
 		requestStream: false,
@@ -532,6 +820,16 @@ export const SyncServiceService = {
 			Buffer.from(ShareAccessTokenResponse.encode(value).finish()),
 		responseDeserialize: (value: Buffer) => ShareAccessTokenResponse.decode(value),
 	},
+	/** Get application name and version info */
+	getVersion: {
+		path: "/codebase_syncer.SyncService/GetVersion",
+		requestStream: false,
+		responseStream: false,
+		requestSerialize: (value: VersionRequest) => Buffer.from(VersionRequest.encode(value).finish()),
+		requestDeserialize: (value: Buffer) => VersionRequest.decode(value),
+		responseSerialize: (value: VersionResponse) => Buffer.from(VersionResponse.encode(value).finish()),
+		responseDeserialize: (value: Buffer) => VersionResponse.decode(value),
+	},
 } as const
 
 export interface SyncServiceServer extends UntypedServiceImplementation {
@@ -539,8 +837,10 @@ export interface SyncServiceServer extends UntypedServiceImplementation {
 	registerSync: handleUnaryCall<RegisterSyncRequest, RegisterSyncResponse>
 	/** Unregister project sync */
 	unregisterSync: handleUnaryCall<UnregisterSyncRequest, Empty>
-	/** Share AccessToken (plaintext transmission, server-side encrypted storage) */
+	/** Share AccessToken (transmitted in plaintext, server-side encrypted storage) */
 	shareAccessToken: handleUnaryCall<ShareAccessTokenRequest, ShareAccessTokenResponse>
+	/** Get application name and version info */
+	getVersion: handleUnaryCall<VersionRequest, VersionResponse>
 }
 
 export interface SyncServiceClient extends Client {
@@ -576,7 +876,7 @@ export interface SyncServiceClient extends Client {
 		options: Partial<CallOptions>,
 		callback: (error: ServiceError | null, response: Empty) => void,
 	): ClientUnaryCall
-	/** Share AccessToken (plaintext transmission, server-side encrypted storage) */
+	/** Share AccessToken (transmitted in plaintext, server-side encrypted storage) */
 	shareAccessToken(
 		request: ShareAccessTokenRequest,
 		callback: (error: ServiceError | null, response: ShareAccessTokenResponse) => void,
@@ -591,6 +891,22 @@ export interface SyncServiceClient extends Client {
 		metadata: Metadata,
 		options: Partial<CallOptions>,
 		callback: (error: ServiceError | null, response: ShareAccessTokenResponse) => void,
+	): ClientUnaryCall
+	/** Get application name and version info */
+	getVersion(
+		request: VersionRequest,
+		callback: (error: ServiceError | null, response: VersionResponse) => void,
+	): ClientUnaryCall
+	getVersion(
+		request: VersionRequest,
+		metadata: Metadata,
+		callback: (error: ServiceError | null, response: VersionResponse) => void,
+	): ClientUnaryCall
+	getVersion(
+		request: VersionRequest,
+		metadata: Metadata,
+		options: Partial<CallOptions>,
+		callback: (error: ServiceError | null, response: VersionResponse) => void,
 	): ClientUnaryCall
 }
 

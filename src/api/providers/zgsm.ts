@@ -1,3 +1,4 @@
+import * as vscode from "vscode"
 import { Anthropic } from "@anthropic-ai/sdk"
 import OpenAI, { AzureOpenAI } from "openai"
 import axios, { AxiosError } from "axios"
@@ -19,10 +20,12 @@ import { XmlMatcher } from "../../utils/xml-matcher"
 import { DEEP_SEEK_DEFAULT_TEMPERATURE } from "./constants"
 import { createHeaders } from "../../zgsmAuth/zgsmAuthHandler"
 import { defaultZgsmAuthConfig } from "../../zgsmAuth/config"
+import { getWorkspacePath } from "../../utils/path"
 
 export const defaultHeaders = {
-	"HTTP-Referer": "https://github.com/RooVetGit/Roo-Cline",
-	"X-Title": "Roo Code",
+	"HTTP-Referer": "https://github.com/zgsm-ai/zgsm",
+	"X-Title": "Shenma",
+	"zgsm-client-id": vscode.env.machineId,
 }
 
 export interface OpenAiHandlerOptions extends ApiHandlerOptions {}
@@ -33,6 +36,7 @@ const AZURE_AI_INFERENCE_PATH = "/models/chat/completions"
 export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler {
 	protected options: OpenAiHandlerOptions
 	private client: OpenAI
+	private taskId = ""
 
 	constructor(options: OpenAiHandlerOptions) {
 		super()
@@ -154,7 +158,13 @@ export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler
 
 			const stream = await this.client.chat.completions.create(
 				requestOptions,
-				isAzureAiInference ? { path: AZURE_AI_INFERENCE_PATH } : {},
+				Object.assign(isAzureAiInference ? { path: AZURE_AI_INFERENCE_PATH } : {}, {
+					headers: {
+						...defaultHeaders,
+						"zgsm-task-id": this.taskId,
+						"zgsm-project-path": getWorkspacePath(),
+					},
+				}),
 			)
 
 			const matcher = new XmlMatcher(
@@ -350,6 +360,10 @@ export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler
 	private _isAzureAiInference(baseUrl?: string): boolean {
 		const urlHost = this._getUrlHost(baseUrl)
 		return urlHost.endsWith(".services.ai.azure.com")
+	}
+
+	setTaskId(taskId: string): void {
+		this.taskId = taskId
 	}
 }
 

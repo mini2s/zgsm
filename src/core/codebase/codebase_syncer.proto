@@ -3,7 +3,7 @@ syntax = "proto3";
 package codebase_syncer;
 option go_package = "./;codebase_syncer";
 
-// Import required proto packages
+// Import necessary proto packages
 import "google/protobuf/empty.proto";
 
 // Token sharing request (encrypted storage)
@@ -14,7 +14,7 @@ message ShareAccessTokenRequest {
     string server_endpoint = 3;  // Cloud service endpoint
 }
 
-// Token sharing response
+// Share Token response
 message ShareAccessTokenResponse {
     bool success = 1;
     string message = 2;
@@ -29,7 +29,7 @@ message RegisterSyncRequest {
 
 // Register workspace sync response
 message RegisterSyncResponse {
-    bool success = 1;           // Whether successful
+    bool success = 1;           // Whether succeeded
     string message = 2;         // Message
 }
 
@@ -40,14 +40,35 @@ message UnregisterSyncRequest {
     string workspace_name = 3;     // Workspace name
 }
 
+// Version info request
+message VersionRequest {
+    string client_id = 1;  // Client ID
+}
+
+// Version info response
+message VersionResponse {
+    message Data {
+        string version = 1;  // Version number
+        string app_name = 2;  // Application name
+        string os_name = 3;  // OS name
+        string arch_name = 4;  // Architecture name
+    }
+    bool success = 1;           // Whether succeeded
+    string message = 2;         // Message
+    Data data = 3;              // Data
+}
+
 // Sync service definition
-service SyncService {    
+service SyncService {
     // Register project sync
     rpc RegisterSync(RegisterSyncRequest) returns (RegisterSyncResponse);
     
     // Unregister project sync
     rpc UnregisterSync(UnregisterSyncRequest) returns (google.protobuf.Empty);
     
-    // Share AccessToken (plaintext transmission, server-side encrypted storage)
+    // Share AccessToken (transmitted in plaintext, server-side encrypted storage)
     rpc ShareAccessToken(ShareAccessTokenRequest) returns (ShareAccessTokenResponse);
+
+    // Get application name and version info
+    rpc GetVersion(VersionRequest) returns (VersionResponse);
 }

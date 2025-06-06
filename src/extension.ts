@@ -37,6 +37,7 @@ import { initializeI18n } from "./i18n"
 import { getCommand } from "./utils/commands"
 import { defaultLang } from "./utils/language"
 import { InstallType, PluginLifecycleManager } from "./core/tools/pluginLifecycleManager"
+import { ZgsmCodeBaseGrpcClient } from "./core/codebase/client"
 
 /**
  * Built using https://github.com/microsoft/vscode-webview-ui-toolkit
@@ -53,6 +54,8 @@ let extensionContext: vscode.ExtensionContext
 // Your extension is activated the very first time the command is executed.
 export async function activate(context: vscode.ExtensionContext) {
 	const hasReloaded = context.globalState.get<boolean>("hasReloadedOnUpgrade") ?? false
+	const zgsmApiKey = context.globalState.get<string>("zgsmApiKey") || ""
+
 	const allCommands = await vscode.commands.getCommands(true)
 
 	if (!allCommands.includes(getCommand("SidebarProvider.focus"))) {
@@ -93,6 +96,13 @@ export async function activate(context: vscode.ExtensionContext) {
 	const provider = new ClineProvider(context, outputChannel, "sidebar", contextProxy)
 	telemetryService.setProvider(provider)
 	await zgsm.activate(context, provider)
+
+	ZgsmCodeBaseGrpcClient.setProvider(provider)
+
+	if (zgsmApiKey) {
+		const zgsmCodeBaseGrpcClient = await ZgsmCodeBaseGrpcClient.getInstance()
+		await zgsmCodeBaseGrpcClient.setToken(zgsmApiKey)
+	}
 
 	context.subscriptions.push(
 		vscode.window.registerWebviewViewProvider(ClineProvider.sideBarId, provider, {
