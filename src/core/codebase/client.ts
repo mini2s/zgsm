@@ -33,8 +33,9 @@ export class ZgsmCodeBaseService {
 
 	private client?: SyncServiceClient
 	private registerSyncInterval?: NodeJS.Timeout
-	private serverEndpoint = ""
+	private address = ""
 	private accessToken = ""
+	private serverEndpoint = ""
 
 	get clientId() {
 		return vscode.env.machineId
@@ -90,6 +91,10 @@ export class ZgsmCodeBaseService {
 
 	setToken(token: string) {
 		this.accessToken = token
+	}
+
+	setServerEndpoint(serverEndpoint: string) {
+		this.serverEndpoint = serverEndpoint
 	}
 
 	/** ====== grpc 通信 ====== */
@@ -168,8 +173,9 @@ export class ZgsmCodeBaseService {
 
 	public async download(version = "v0.0.1"): Promise<void> {
 		const url =
-			`http://localhost:8080/codebase-syncer/${version}/${this.platform}_${this.arch}/zgsmCodebaseSync` +
+			`${this.serverEndpoint}/codebase-syncer/releases/download/${version}/${this.platform}_${this.arch}/zgsmCodebaseSync` +
 			(this.platform === "windows" ? ".exe" : "")
+		console.log(`grpc 客户端下载路径: ${url}`)
 
 		// 获取目标路径
 		const { targetDir, targetPath } = this.getTargetPath(version)
@@ -206,7 +212,7 @@ export class ZgsmCodeBaseService {
 
 		if (!provider) throw new Error("provider not init!")
 
-		const url = "http://localhost:8080/codebase-syncer/release.json"
+		const url = `${this.serverEndpoint}/codebase-syncer/releases`
 		const response = await fetch(url)
 		const json = (await response.json()) as ReleaseListResponse
 
@@ -298,19 +304,17 @@ export class ZgsmCodeBaseService {
 					encoding: "utf8" as const,
 				}
 				const port = await getPort({ port: portNumbers(50051, 65535) })
-				const serverEndpoint = `localhost:${port}`
+				const address = `localhost:${port}`
 
 				const command =
-					this.platform === "windows"
-						? `"${targetPath}" -grpc ${serverEndpoint}`
-						: `${targetPath} -grpc ${serverEndpoint}`
+					this.platform === "windows" ? `"${targetPath}" -grpc ${address}` : `${targetPath} -grpc ${address}`
 				const process = exec(command, processOptions)
 				process.unref()
 
 				// 稍等一会检查进程是否还在运行
 				await new Promise((resolve) => setTimeout(resolve, attempts * 1000))
 				const isRunning = await this.isProcessRunning()
-				this.serverEndpoint = serverEndpoint
+				this.address = address
 				if (isRunning) return
 			} catch (err) {
 				console.error(`启动进程失败(尝试 ${attempts}/${maxRetries}): ${err}`)
@@ -326,7 +330,7 @@ export class ZgsmCodeBaseService {
 		await this.killProcess()
 		await this.startProcess(version)
 		this.client?.close()
-		this.client = new SyncServiceClient(this.serverEndpoint, grpc.credentials.createInsecure())
+		this.client = new SyncServiceClient(this.address, grpc.credentials.createInsecure())
 		this.client.waitForReady(1000, async () => {
 			await this.shareAccessToken({
 				accessToken: this.accessToken,

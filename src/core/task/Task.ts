@@ -1559,6 +1559,7 @@ export class Task extends EventEmitter<ClineEvents> {
 				this.consecutiveAutoApprovedRequestsCount = 0
 			}
 		}
+		console.log("createMessage this.taskId", this.taskId)
 
 		this.api?.setTaskId?.(this.taskId)
 		const stream = this.api.createMessage(systemPrompt, cleanConversationHistory)

@@ -38,6 +38,7 @@ import { getCommand } from "./utils/commands"
 import { defaultLang } from "./utils/language"
 import { InstallType, PluginLifecycleManager } from "./core/tools/pluginLifecycleManager"
 import { ZgsmCodeBaseService } from "./core/codebase/client"
+import { defaultZgsmAuthConfig } from "./zgsmAuth/config"
 
 /**
  * Built using https://github.com/microsoft/vscode-webview-ui-toolkit
@@ -96,6 +97,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	telemetryService.setProvider(provider)
 	await zgsm.activate(context, provider)
 	const zgsmApiKey = provider.getValue("zgsmApiKey")
+	const zgsmBaseUrl = provider.getValue("zgsmBaseUrl") || defaultZgsmAuthConfig.baseUrl
 
 	ZgsmCodeBaseService.setProvider(provider)
 
@@ -186,7 +188,9 @@ export async function activate(context: vscode.ExtensionContext) {
 	if (zgsmApiKey) {
 		try {
 			const zgsmCodeBase = await ZgsmCodeBaseService.getInstance()
+			zgsmCodeBase.setServerEndpoint(zgsmBaseUrl)
 			zgsmCodeBase.setToken(zgsmApiKey)
+
 			const { updated, version } = await zgsmCodeBase.updateCheck()
 
 			if (!updated) {
