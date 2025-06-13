@@ -255,12 +255,6 @@ export class ZgsmCodeBaseService {
 		})
 
 		await downloader.download()
-
-		if (await this.isProcessRunning()) {
-			console.log(`Restarting service...`)
-			await this.killProcess()
-			console.log("✅ Service restarted successfully")
-		}
 	}
 
 	async getVersionList(): Promise<PackagesResponse> {
@@ -276,10 +270,10 @@ export class ZgsmCodeBaseService {
 
 	// Check if grpc client needs to be updated
 	async updateCheck() {
-		const provider = ZgsmCodeBaseService.providerRef.deref()
-		if (!provider) throw new Error("provider not init!")
+		try {
+			const provider = ZgsmCodeBaseService.providerRef.deref()
+			if (!provider) throw new Error("provider not init!")
 
-		return this.retryWrapper(async () => {
 			const json = await this.getVersionList()
 
 			if (!json.versions.length) {
@@ -294,7 +288,12 @@ export class ZgsmCodeBaseService {
 				updated: await this.fileExists(targetPath),
 				version: latestVersion,
 			}
-		})
+		} catch (error) {
+			return {
+				updated: false,
+				version: "",
+			}
+		}
 	}
 
 	async isProcessRunning(processName = "codebaseSyncer"): Promise<boolean> {
@@ -381,8 +380,10 @@ export class ZgsmCodeBaseService {
 		const isRunning = await this.isProcessRunning()
 
 		if (!(isRunning && data?.version === version)) {
+			console.log(`Start service...`)
 			await this.killProcess()
 			await this.startProcess(version)
+			console.log("✅ Service start successfully")
 		}
 
 		this.client?.close()
