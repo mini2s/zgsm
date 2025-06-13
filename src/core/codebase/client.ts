@@ -143,7 +143,7 @@ export class ZgsmCodeBaseService {
 			throw new Error("Failed to determine home directory path")
 		}
 
-		const targetDir = path.join(homeDir, ".zgsm", version, `${this.platform}_${this.arch}`)
+		const targetDir = path.join(homeDir, ".zgsm", "bin", version, `${this.platform}_${this.arch}`)
 		const targetPath = path.join(targetDir, `codebaseSyncer${this.platform === "windows" ? ".exe" : ""}`)
 		return { targetDir, targetPath }
 	}
