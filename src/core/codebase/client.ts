@@ -67,6 +67,7 @@ export class ZgsmCodeBaseService {
 	private address = ""
 	private accessToken = ""
 	private serverEndpoint = ""
+	private state = "stopped" as "running" | "stopped" | "unknown"
 
 	get clientId() {
 		return vscode.env.machineId
@@ -105,18 +106,18 @@ export class ZgsmCodeBaseService {
 		}
 	}
 
-	public static async setProvider(provider: ClineProvider) {
+	static async setProvider(provider: ClineProvider) {
 		ZgsmCodeBaseService.providerRef = new WeakRef(provider)
 	}
 
-	public static async getInstance() {
+	static async getInstance() {
 		if (!ZgsmCodeBaseService._instance) {
 			return (ZgsmCodeBaseService._instance = new ZgsmCodeBaseService())
 		}
 		return ZgsmCodeBaseService._instance
 	}
 
-	public static async stopSync() {
+	static async stopSync() {
 		const _instance = await ZgsmCodeBaseService.getInstance()
 
 		if (!_instance) return
@@ -124,6 +125,43 @@ export class ZgsmCodeBaseService {
 		_instance.stopUpdatePollTimeout()
 		_instance.client?.close()
 		_instance.unregisterSync().catch(console.error)
+	}
+
+	private async fileExists(path: string): Promise<boolean> {
+		try {
+			await fs.promises.access(path, fs.constants.F_OK)
+			return true
+		} catch {
+			return false
+		}
+	}
+
+	// Supported platforms: linux/windows/mac
+	private getTargetPath(version: string): { targetDir: string; targetPath: string } {
+		const homeDir = this.platform === "windows" ? process.env.USERPROFILE : process.env.HOME
+		if (!homeDir) {
+			throw new Error("Failed to determine home directory path")
+		}
+
+		const targetDir = path.join(homeDir, ".zgsm", version, `${this.platform}_${this.arch}`)
+		const targetPath = path.join(targetDir, `codebaseSyncer${this.platform === "windows" ? ".exe" : ""}`)
+		return { targetDir, targetPath }
+	}
+
+	private async retryWrapper<T>(fn: () => Promise<T>): Promise<T> {
+		let lastError: Error | undefined
+
+		for (let attempt = 0; attempt < 3; attempt++) {
+			try {
+				return await fn()
+			} catch (error) {
+				lastError = error instanceof Error ? error : new Error(String(error))
+				if (attempt < 2) {
+					await new Promise((resolve) => setTimeout(resolve, 1000 * Math.pow(2, attempt)))
+				}
+			}
+		}
+		throw lastError || new Error("Operation failed after 3 attempts")
 	}
 
 	setToken(token: string) {
@@ -191,31 +229,8 @@ export class ZgsmCodeBaseService {
 			})
 		})
 	}
-	/** ====== grpc Communication ====== */
 
-	/** ====== grpc 客户端获取与更新检测 ====== */
-	private async fileExists(path: string): Promise<boolean> {
-		try {
-			await fs.promises.access(path, fs.constants.F_OK)
-			return true
-		} catch {
-			return false
-		}
-	}
-
-	// Supported platforms: linux/windows/mac
-	private getTargetPath(version: string): { targetDir: string; targetPath: string } {
-		const homeDir = this.platform === "windows" ? process.env.USERPROFILE : process.env.HOME
-		if (!homeDir) {
-			throw new Error("Failed to determine home directory path")
-		}
-
-		const targetDir = path.join(homeDir, ".zgsm", version, `${this.platform}_${this.arch}`)
-		const targetPath = path.join(targetDir, `codebaseSyncer${this.platform === "windows" ? ".exe" : ""}`)
-		return { targetDir, targetPath }
-	}
-
-	public async download(version: string): Promise<void> {
+	async download(version: string): Promise<void> {
 		// 1. Get version information
 		const packagesData = await this.getVersionList()
 
@@ -248,36 +263,42 @@ export class ZgsmCodeBaseService {
 		}
 	}
 
-	public async getVersionList() {
+	async getVersionList(): Promise<PackagesResponse> {
 		const packagesUrl = `${this.apiBase}/packages-${this.platform}-${this.arch}/1.0/packages-${this.platform}-${this.arch}.json`
-		const packagesResponse = await fetch(packagesUrl)
-
-		return (await packagesResponse.json()) as PackagesResponse
+		return this.retryWrapper(async () => {
+			const response = await fetch(packagesUrl)
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`)
+			}
+			return response.json() as Promise<PackagesResponse>
+		})
 	}
 
 	// Check if grpc client needs to be updated
-	public async updateCheck() {
+	async updateCheck() {
 		const provider = ZgsmCodeBaseService.providerRef.deref()
-
 		if (!provider) throw new Error("provider not init!")
 
-		const json = await this.getVersionList()
+		return this.retryWrapper(async () => {
+			const json = await this.getVersionList()
 
-		if (!json.versions.length) {
-			throw new Error("Failed to get version list")
-		}
+			if (!json.versions.length) {
+				throw new Error("Failed to get version list")
+			}
 
-		const { major, minor, micro } = json.latest.versionId
-		const latestVersion = `${major}.${minor}.${micro}`
+			const { major, minor, micro } = json.latest.versionId
+			const latestVersion = `${major}.${minor}.${micro}`
 
-		const { targetPath } = await this.getTargetPath(latestVersion)
-
-		return { updated: await this.fileExists(targetPath), version: latestVersion }
+			const { targetPath } = await this.getTargetPath(latestVersion)
+			return {
+				updated: await this.fileExists(targetPath),
+				version: latestVersion,
+			}
+		})
 	}
-	/** ====== grpc Client Acquisition & Update Check ====== */
 
-	/** ====== Process Management ====== */
-	private async isProcessRunning(processName = "codebaseSyncer"): Promise<boolean> {
+	async isProcessRunning(processName = "codebaseSyncer"): Promise<boolean> {
+		// Skip retry for process checking as it's not a gRPC call
 		try {
 			let output: string
 			switch (this.platform) {
@@ -298,7 +319,7 @@ export class ZgsmCodeBaseService {
 		}
 	}
 
-	public async killProcess(processName = "codebaseSyncer"): Promise<void> {
+	async killProcess(processName = "codebaseSyncer"): Promise<void> {
 		try {
 			if (this.platform === "windows") {
 				await new Promise((resolve) => {
@@ -315,7 +336,7 @@ export class ZgsmCodeBaseService {
 	}
 
 	// 2. Start new process with retry mechanism
-	public async startProcess(version: string, maxRetries = 5): Promise<void> {
+	async startProcess(version: string, maxRetries = 5): Promise<void> {
 		let attempts = 0
 
 		const { targetPath } = this.getTargetPath(version)
@@ -422,7 +443,6 @@ export class ZgsmCodeBaseService {
 			this.updatePollTimeout = undefined
 		}
 	}
-	/** ====== grpc Client Acquisition & Update Check ====== */
 }
 
 function execPromise(command: string): Promise<string> {
