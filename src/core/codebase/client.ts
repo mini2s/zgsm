@@ -60,14 +60,13 @@ export class ZgsmCodeBaseService {
 	private static providerRef: WeakRef<ClineProvider>
 	private static _instance: ZgsmCodeBaseService
 
-	private client?: SyncServiceClient
 	private registerSyncTimeout?: NodeJS.Timeout
 	private updatePollTimeout?: NodeJS.Timeout
-
 	private address = ""
 	private accessToken = ""
 	private serverEndpoint = ""
-	private state = "stopped" as "running" | "stopped" | "unknown"
+
+	public client?: SyncServiceClient
 
 	get clientId() {
 		return vscode.env.machineId
@@ -153,7 +152,7 @@ export class ZgsmCodeBaseService {
 		return { targetDir, targetPath }
 	}
 
-	private async retryWrapper<T>(fn: () => Promise<T>): Promise<T> {
+	private async retryWrapper<T>(rid: string, fn: () => Promise<T>): Promise<T> {
 		let lastError: Error | undefined
 
 		for (let attempt = 0; attempt < 3; attempt++) {
@@ -161,6 +160,7 @@ export class ZgsmCodeBaseService {
 				return await fn()
 			} catch (error) {
 				lastError = error instanceof Error ? error : new Error(String(error))
+				console.warn(`[${rid}] Attempt ${attempt + 1} failed:`, lastError.message)
 				if (attempt < 2) {
 					await new Promise((resolve) => setTimeout(resolve, 1000 * Math.pow(2, attempt)))
 				}
@@ -179,7 +179,7 @@ export class ZgsmCodeBaseService {
 
 	/** ====== grpc Communication ====== */
 	async registerSync(request: RegisterSyncRequest): Promise<RegisterSyncResponse> {
-		return this.retryWrapper(() => {
+		return this.retryWrapper("registerSync", () => {
 			return new Promise((resolve, reject) => {
 				if (!this.client) {
 					return reject(new Error("client not init!"))
@@ -199,7 +199,7 @@ export class ZgsmCodeBaseService {
 			workspaceName: this.workspaceName,
 		},
 	): Promise<void> {
-		return this.retryWrapper(() => {
+		return this.retryWrapper("unregisterSync", () => {
 			return new Promise((resolve, reject) => {
 				if (!this.client) {
 					return reject(new Error("client not init!"))
@@ -213,7 +213,7 @@ export class ZgsmCodeBaseService {
 	}
 
 	async shareAccessToken(request: ShareAccessTokenRequest): Promise<ShareAccessTokenResponse> {
-		return this.retryWrapper(() => {
+		return this.retryWrapper("shareAccessToken", () => {
 			return new Promise((resolve, reject) => {
 				if (!this.client) {
 					return reject(new Error("client not init!"))
@@ -230,7 +230,7 @@ export class ZgsmCodeBaseService {
 	}
 
 	async getLocalClientInfo(request: VersionRequest): Promise<VersionResponse> {
-		return this.retryWrapper(() => {
+		return this.retryWrapper("getLocalClientInfo", () => {
 			return new Promise((resolve, reject) => {
 				if (!this.client) {
 					return reject(new Error("client not init!"))
@@ -272,7 +272,7 @@ export class ZgsmCodeBaseService {
 
 	async getVersionList(): Promise<PackagesResponse> {
 		const packagesUrl = `${this.apiBase}/packages-${this.platform}-${this.arch}/1.0/packages-${this.platform}-${this.arch}.json`
-		return this.retryWrapper(async () => {
+		return this.retryWrapper("getVersionList", async () => {
 			const response = await fetch(packagesUrl)
 			if (!response.ok) {
 				throw new Error(`HTTP error! status: ${response.status}`)
@@ -386,10 +386,9 @@ export class ZgsmCodeBaseService {
 	public async startSync(version: string): Promise<void> {
 		this.stopRegisterSyncPoll()
 
-		const { data } = await this.getLocalClientInfo({ clientId: this.clientId }).catch((error) => {
-			console.error(error)
-			return { data: { version: "" } }
-		})
+		const { data } = await this.getLocalClientInfo({ clientId: this.clientId }).catch(() => ({
+			data: { version: "" },
+		}))
 		const isRunning = await this.isProcessRunning()
 
 		if (!(isRunning && data?.version === version)) {
@@ -407,7 +406,7 @@ export class ZgsmCodeBaseService {
 				clientId: this.clientId,
 				serverEndpoint: this.serverEndpoint,
 			})
-			this.registerSync({
+			await this.registerSync({
 				clientId: this.clientId,
 				workspacePath: this.workspacePath,
 				workspaceName: this.workspaceName,
