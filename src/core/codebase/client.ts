@@ -174,13 +174,15 @@ export class ZgsmCodeBaseService {
 
 	/** ====== grpc Communication ====== */
 	async registerSync(request: RegisterSyncRequest): Promise<RegisterSyncResponse> {
-		return new Promise((resolve, reject) => {
-			if (!this.client) {
-				return reject(new Error("client not init!"))
-			}
-			this.client.registerSync(request, (err: grpc.ServiceError | null, response?: RegisterSyncResponse) => {
-				if (err) return reject(err)
-				resolve(response!)
+		return this.retryWrapper(() => {
+			return new Promise((resolve, reject) => {
+				if (!this.client) {
+					return reject(new Error("client not init!"))
+				}
+				this.client.registerSync(request, (err: grpc.ServiceError | null, response?: RegisterSyncResponse) => {
+					if (err) return reject(err)
+					resolve(response!)
+				})
 			})
 		})
 	}
@@ -192,40 +194,46 @@ export class ZgsmCodeBaseService {
 			workspaceName: this.workspaceName,
 		},
 	): Promise<void> {
-		return new Promise((resolve, reject) => {
-			if (!this.client) {
-				return reject(new Error("client not init!"))
-			}
-			this.client.unregisterSync(request, (err: grpc.ServiceError | null) => {
-				if (err) return reject(err)
-				resolve()
+		return this.retryWrapper(() => {
+			return new Promise((resolve, reject) => {
+				if (!this.client) {
+					return reject(new Error("client not init!"))
+				}
+				this.client.unregisterSync(request, (err: grpc.ServiceError | null) => {
+					if (err) return reject(err)
+					resolve()
+				})
 			})
 		})
 	}
 
 	async shareAccessToken(request: ShareAccessTokenRequest): Promise<ShareAccessTokenResponse> {
-		return new Promise((resolve, reject) => {
-			if (!this.client) {
-				return reject(new Error("client not init!"))
-			}
-			this.client.shareAccessToken(
-				request,
-				(err: grpc.ServiceError | null, response?: ShareAccessTokenResponse) => {
-					if (err) return reject(err)
-					resolve(response!)
-				},
-			)
+		return this.retryWrapper(() => {
+			return new Promise((resolve, reject) => {
+				if (!this.client) {
+					return reject(new Error("client not init!"))
+				}
+				this.client.shareAccessToken(
+					request,
+					(err: grpc.ServiceError | null, response?: ShareAccessTokenResponse) => {
+						if (err) return reject(err)
+						resolve(response!)
+					},
+				)
+			})
 		})
 	}
 
 	async getLocalClientInfo(request: VersionRequest): Promise<VersionResponse> {
-		return new Promise((resolve, reject) => {
-			if (!this.client) {
-				return reject(new Error("client not init!"))
-			}
-			this.client.getVersion(request, (err: grpc.ServiceError | null, response?: VersionResponse) => {
-				if (err) return reject(err)
-				resolve(response!)
+		return this.retryWrapper(() => {
+			return new Promise((resolve, reject) => {
+				if (!this.client) {
+					return reject(new Error("client not init!"))
+				}
+				this.client.getVersion(request, (err: grpc.ServiceError | null, response?: VersionResponse) => {
+					if (err) return reject(err)
+					resolve(response!)
+				})
 			})
 		})
 	}
