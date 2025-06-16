@@ -231,15 +231,13 @@ export class ZgsmCodeBaseService {
 	}
 
 	async getLocalClientInfo(request: VersionRequest): Promise<VersionResponse> {
-		return this.retryWrapper("getLocalClientInfo", () => {
-			return new Promise((resolve, reject) => {
-				if (!this.client) {
-					return reject(new Error("client not init!"))
-				}
-				this.client.getVersion(request, (err: grpc.ServiceError | null, response?: VersionResponse) => {
-					if (err) return reject(err)
-					resolve(response!)
-				})
+		return new Promise((resolve, reject) => {
+			if (!this.client) {
+				return reject(new Error("client not init!"))
+			}
+			this.client.getVersion(request, (err: grpc.ServiceError | null, response?: VersionResponse) => {
+				if (err) return reject(err)
+				resolve(response!)
 			})
 		})
 	}
@@ -438,7 +436,7 @@ export class ZgsmCodeBaseService {
 			this.stopUpdatePollTimeout()
 		}
 
-		const interval = 3 * 1000
+		const interval = 10 * 1000
 
 		let attempts = 0
 
@@ -452,8 +450,8 @@ export class ZgsmCodeBaseService {
 
 				attempts = 0
 			} catch (error) {
-				if (attempts < 10) {
-					console.warn(`[updateCLientPoll Attempt ${attempts + 1} failed:`, error.message)
+				if (attempts < 6) {
+					console.warn(`[updateCLientPoll Attempt ${++attempts} failed:`, error.message)
 					this.updatePollTimeout = setTimeout(sync, interval)
 				} else {
 					try {
