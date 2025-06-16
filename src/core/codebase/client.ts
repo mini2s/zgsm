@@ -63,6 +63,7 @@ export class ZgsmCodeBaseService {
 	private registerSyncTimeout?: NodeJS.Timeout
 	private updatePollTimeout?: NodeJS.Timeout
 	private address = ""
+	private curVersion = ""
 	private accessToken = ""
 	private serverEndpoint = ""
 
@@ -411,6 +412,7 @@ export class ZgsmCodeBaseService {
 				workspacePath: this.workspacePath,
 				workspaceName: this.workspaceName,
 			})
+			this.curVersion = version
 			this.registerSyncPoll()
 		})
 	}
@@ -436,18 +438,43 @@ export class ZgsmCodeBaseService {
 			this.stopUpdatePollTimeout()
 		}
 
-		const sync = () => {
-			this.updateCheck()
-				.then(async (res) => {
-					if (!res.updated) {
-						await this.download(res.version)
+		const interval = 3 * 1000
+
+		let attempts = 0
+
+		const sync = async () => {
+			try {
+				const { data } = await this.getLocalClientInfo({ clientId: this.clientId })
+
+				if (data?.version !== this.curVersion) {
+					throw new Error("Version is not match")
+				}
+
+				attempts = 0
+			} catch (error) {
+				if (attempts < 10) {
+					console.warn(`[updateCLientPoll Attempt ${attempts + 1} failed:`, error.message)
+					this.updatePollTimeout = setTimeout(sync, interval)
+				} else {
+					try {
+						attempts = 0
+						const res = await this.updateCheck()
+						if (!res.updated) {
+							await this.download(res.version)
+						}
+						await this.startSync(res.version)
+					} catch (error) {
+						console.warn(`[updateCLientPoll restart failed:`, error.message)
+					} finally {
+						this.updatePollTimeout = setTimeout(sync, interval)
 					}
-					this.startSync(res.version)
-				})
-				.catch(console.error)
-			this.updatePollTimeout = setTimeout(sync, 60 * 60 * 1000)
+				}
+				return
+			}
+
+			this.updatePollTimeout = setTimeout(sync, interval)
 		}
-		this.updatePollTimeout = setTimeout(sync, 60 * 60 * 1000)
+		this.updatePollTimeout = setTimeout(sync, interval)
 	}
 
 	stopUpdatePollTimeout() {
