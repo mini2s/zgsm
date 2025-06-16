@@ -123,8 +123,13 @@ export class ZgsmCodeBaseService {
 		if (!_instance) return
 		_instance.stopRegisterSyncPoll()
 		_instance.stopUpdatePollTimeout()
-		_instance.client?.close()
-		_instance.unregisterSync().catch(console.error)
+
+		try {
+			await _instance.unregisterSync()
+			_instance.client?.close()
+		} catch (error) {
+			console.error(error.message)
+		}
 	}
 
 	private async fileExists(path: string): Promise<boolean> {
