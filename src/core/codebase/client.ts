@@ -377,7 +377,7 @@ export class ZgsmCodeBaseSyncService {
 
 		this.client?.close()
 		this.client = new SyncServiceClient(this.address, grpc.credentials.createInsecure())
-		this.client.waitForReady(1000, async () => {
+		this.client.waitForReady(Date.now() + 1000, async () => {
 			await this.shareAccessToken()
 			await this.registerSync()
 			this.curVersion = version
@@ -470,7 +470,6 @@ export class ZgsmCodeBaseSyncService {
 		}
 	}
 }
-
 function execPromise(command: string): Promise<string> {
 	return new Promise((resolve, reject) => {
 		exec(command, (error, stdout) => {
