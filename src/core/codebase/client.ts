@@ -14,47 +14,11 @@ import {
 } from "./types/codebase_syncer"
 import { ClineProvider } from "../webview/ClineProvider"
 import { getWorkspacePath } from "../../utils/path"
+import { PackageInfo, PackagesResponse } from "./types"
 
-interface PackageInfo {
-	packageName: string
-	os: string
-	arch: string
-	size: number
-	checksum: string
-	sign: string
-	checksumAlgo: string
-	versionId: {
-		major: number
-		minor: number
-		micro: number
-		support: string
-	}
-	build: string
-	versionDesc: string
-}
-
-interface VersionInfo {
-	versionId: {
-		major: number
-		minor: number
-		micro: number
-		support: string
-	}
-	appUrl: string
-	packageUrl: string
-	infoUrl: string
-}
-
-interface PackagesResponse {
-	os: string
-	arch: string
-	latest: VersionInfo
-	versions: VersionInfo[]
-}
-
-export class ZgsmCodeBaseService {
+export class ZgsmCodeBaseSyncService {
 	private static providerRef: WeakRef<ClineProvider>
-	private static _instance: ZgsmCodeBaseService
+	private static _instance: ZgsmCodeBaseSyncService
 
 	private registerSyncTimeout?: NodeJS.Timeout
 	private clientDaemonPollTimeout?: NodeJS.Timeout
@@ -104,18 +68,18 @@ export class ZgsmCodeBaseService {
 	}
 
 	static async setProvider(provider: ClineProvider) {
-		ZgsmCodeBaseService.providerRef = new WeakRef(provider)
+		ZgsmCodeBaseSyncService.providerRef = new WeakRef(provider)
 	}
 
 	static async getInstance() {
-		if (!ZgsmCodeBaseService._instance) {
-			return (ZgsmCodeBaseService._instance = new ZgsmCodeBaseService())
+		if (!ZgsmCodeBaseSyncService._instance) {
+			return (ZgsmCodeBaseSyncService._instance = new ZgsmCodeBaseSyncService())
 		}
-		return ZgsmCodeBaseService._instance
+		return ZgsmCodeBaseSyncService._instance
 	}
 
 	static async stopSync() {
-		const _instance = await ZgsmCodeBaseService.getInstance()
+		const _instance = await ZgsmCodeBaseSyncService.getInstance()
 
 		if (!_instance) return
 		_instance.stopRegisterSyncPoll()
@@ -297,7 +261,7 @@ export class ZgsmCodeBaseService {
 	// Check if grpc client needs to be updated
 	async updateCheck() {
 		try {
-			const provider = ZgsmCodeBaseService.providerRef.deref()
+			const provider = ZgsmCodeBaseSyncService.providerRef.deref()
 			if (!provider) throw new Error("provider not init!")
 
 			const json = await this.getVersionList()
@@ -396,7 +360,7 @@ export class ZgsmCodeBaseService {
 		}
 	}
 
-	public async startSync(version: string): Promise<void> {
+	public async runSync(version: string): Promise<void> {
 		this.stopRegisterSyncPoll()
 
 		const { data } = await this.getLocalClientInfo().catch(() => ({
@@ -441,7 +405,7 @@ export class ZgsmCodeBaseService {
 		this.stopClientUpdatePoll()
 
 		const run = () => {
-			this.update().finally(() => {
+			this.start().finally(() => {
 				this.clientUpdatePollTimeout = setTimeout(run, 1000 * 60 * 60)
 			})
 		}
@@ -449,14 +413,14 @@ export class ZgsmCodeBaseService {
 		this.clientUpdatePollTimeout = setTimeout(run, 1000 * 60 * 60)
 	}
 
-	async update() {
-		const res = await this.updateCheck()
+	async start() {
+		const { updated, version } = await this.updateCheck()
 
-		if (!res.updated) {
-			await this.download(res.version)
+		if (!updated) {
+			await this.download(version)
 		}
 
-		await this.startSync(res.version)
+		await this.runSync(version)
 	}
 
 	clientDaemonPoll() {
@@ -464,7 +428,7 @@ export class ZgsmCodeBaseService {
 			this.stopClientDaemonPoll()
 		}
 
-		const interval = 10 * 1000
+		const interval = 30 * 1000
 
 		let attempts = 0
 
@@ -484,7 +448,7 @@ export class ZgsmCodeBaseService {
 				} else {
 					try {
 						attempts = 0
-						await this.update()
+						await this.start()
 					} catch (error) {
 						console.warn(`[ClientDaemonPoll restart failed:`, error.message)
 					} finally {
@@ -511,7 +475,7 @@ function execPromise(command: string): Promise<string> {
 	return new Promise((resolve, reject) => {
 		exec(command, (error, stdout) => {
 			if (error) {
-				reject(error) // 命令执行失败返回false
+				reject(error)
 			} else {
 				resolve(stdout)
 			}

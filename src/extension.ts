@@ -37,7 +37,7 @@ import { initializeI18n } from "./i18n"
 import { getCommand } from "./utils/commands"
 import { defaultLang } from "./utils/language"
 import { InstallType, PluginLifecycleManager } from "./core/tools/pluginLifecycleManager"
-import { ZgsmCodeBaseService } from "./core/codebase/client"
+import { ZgsmCodeBaseSyncService } from "./core/codebase/client"
 import { defaultZgsmAuthConfig } from "./zgsmAuth/config"
 import { initZgsmCodeBase } from "./core/codebase"
 
@@ -100,7 +100,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	const zgsmApiKey = provider.getValue("zgsmApiKey")
 	const zgsmBaseUrl = provider.getValue("zgsmBaseUrl") || defaultZgsmAuthConfig.baseUrl
 
-	ZgsmCodeBaseService.setProvider(provider)
+	ZgsmCodeBaseSyncService.setProvider(provider)
 
 	context.subscriptions.push(
 		vscode.window.registerWebviewViewProvider(ClineProvider.sideBarId, provider, {
@@ -195,7 +195,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 // This method is called when your extension is deactivated.
 export async function deactivate() {
-	ZgsmCodeBaseService.stopSync()
+	ZgsmCodeBaseSyncService.stopSync()
 	await zgsm.deactivate()
 
 	// Clean up MCP server manager

@@ -1,23 +1,16 @@
-import { ZgsmCodeBaseService } from "./client"
+import { ZgsmCodeBaseSyncService } from "./client"
 
 export const initZgsmCodeBase = async (zgsmBaseUrl: string, zgsmApiKey: string) => {
-	const zgsmCodeBase = await ZgsmCodeBaseService.getInstance()
+	const zgsmCodeBaseSync = await ZgsmCodeBaseSyncService.getInstance()
 
 	try {
-		zgsmCodeBase.setServerEndpoint(zgsmBaseUrl)
-		zgsmCodeBase.setToken(zgsmApiKey)
-
-		const { updated, version } = await zgsmCodeBase.updateCheck()
-
-		if (!updated) {
-			await zgsmCodeBase.download(version)
-		}
-
-		await zgsmCodeBase.startSync(version)
+		zgsmCodeBaseSync.setServerEndpoint(zgsmBaseUrl)
+		zgsmCodeBaseSync.setToken(zgsmApiKey)
+		await zgsmCodeBaseSync.start()
 	} catch (error) {
 		console.log(`[initZgsmCodeBase] ${error.message}`)
 	} finally {
-		zgsmCodeBase.clientDaemonPoll()
-		zgsmCodeBase.clientUpdatePoll()
+		zgsmCodeBaseSync.clientDaemonPoll()
+		zgsmCodeBaseSync.clientUpdatePoll()
 	}
 }
