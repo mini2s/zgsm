@@ -348,7 +348,7 @@ export class ZgsmCodeBaseService {
 		try {
 			if (this.platform === "windows") {
 				await new Promise((resolve) => {
-					exec(`taskkill /IM ${processName}.exe /F`, resolve)
+					exec(`taskkill /F /IM "${processName}.exe"`, resolve)
 				})
 			} else {
 				await new Promise((resolve) => {
