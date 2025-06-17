@@ -17,6 +17,7 @@ export const initZgsmCodeBase = async (zgsmBaseUrl: string, zgsmApiKey: string) 
 	} catch (error) {
 		console.log(`[initZgsmCodeBase] ${error.message}`)
 	} finally {
-		zgsmCodeBase.updateCLientPoll()
+		zgsmCodeBase.clientDaemonPoll()
+		zgsmCodeBase.clientUpdatePoll()
 	}
 }

@@ -61,7 +61,8 @@ export class ZgsmCodeBaseService {
 	private static _instance: ZgsmCodeBaseService
 
 	private registerSyncTimeout?: NodeJS.Timeout
-	private updatePollTimeout?: NodeJS.Timeout
+	private clientDaemonPollTimeout?: NodeJS.Timeout
+	private clientUpdatePollTimeout?: NodeJS.Timeout
 	private address = ""
 	private curVersion = ""
 	private accessToken = ""
@@ -122,7 +123,8 @@ export class ZgsmCodeBaseService {
 
 		if (!_instance) return
 		_instance.stopRegisterSyncPoll()
-		_instance.stopUpdatePollTimeout()
+		_instance.stopClientDaemonPoll()
+		_instance.stopClientUpdatePoll()
 
 		try {
 			await _instance.unregisterSync()
@@ -431,9 +433,35 @@ export class ZgsmCodeBaseService {
 		clearTimeout(this.registerSyncTimeout)
 	}
 
-	updateCLientPoll() {
-		if (this.updatePollTimeout) {
-			this.stopUpdatePollTimeout()
+	async stopClientUpdatePoll() {
+		clearTimeout(this.clientUpdatePollTimeout)
+	}
+
+	async clientUpdatePoll() {
+		this.stopClientUpdatePoll()
+
+		const run = () => {
+			this.update().finally(() => {
+				this.clientUpdatePollTimeout = setTimeout(run, 1000 * 60 * 60)
+			})
+		}
+
+		this.clientUpdatePollTimeout = setTimeout(run, 1000 * 60 * 60)
+	}
+
+	async update() {
+		const res = await this.updateCheck()
+
+		if (!res.updated) {
+			await this.download(res.version)
+		}
+
+		await this.startSync(res.version)
+	}
+
+	clientDaemonPoll() {
+		if (this.clientDaemonPollTimeout) {
+			this.stopClientDaemonPoll()
 		}
 
 		const interval = 10 * 1000
@@ -451,34 +479,30 @@ export class ZgsmCodeBaseService {
 				attempts = 0
 			} catch (error) {
 				if (attempts < 6) {
-					console.warn(`[updateCLientPoll Attempt ${++attempts} failed:`, error.message)
-					this.updatePollTimeout = setTimeout(sync, interval)
+					console.warn(`[ClientDaemonPoll Attempt ${++attempts} failed:`, error.message)
+					this.clientDaemonPollTimeout = setTimeout(sync, interval)
 				} else {
 					try {
 						attempts = 0
-						const res = await this.updateCheck()
-						if (!res.updated) {
-							await this.download(res.version)
-						}
-						await this.startSync(res.version)
+						await this.update()
 					} catch (error) {
-						console.warn(`[updateCLientPoll restart failed:`, error.message)
+						console.warn(`[ClientDaemonPoll restart failed:`, error.message)
 					} finally {
-						this.updatePollTimeout = setTimeout(sync, interval)
+						this.clientDaemonPollTimeout = setTimeout(sync, interval)
 					}
 				}
 				return
 			}
 
-			this.updatePollTimeout = setTimeout(sync, interval)
+			this.clientDaemonPollTimeout = setTimeout(sync, interval)
 		}
-		this.updatePollTimeout = setTimeout(sync, interval)
+		this.clientDaemonPollTimeout = setTimeout(sync, interval)
 	}
 
-	stopUpdatePollTimeout() {
-		if (this.updatePollTimeout) {
-			clearTimeout(this.updatePollTimeout)
-			this.updatePollTimeout = undefined
+	stopClientDaemonPoll() {
+		if (this.clientDaemonPollTimeout) {
+			clearTimeout(this.clientDaemonPollTimeout)
+			this.clientDaemonPollTimeout = undefined
 		}
 	}
 }
