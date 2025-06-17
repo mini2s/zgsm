@@ -8,12 +8,8 @@ import * as fs from "fs"
 import { exec } from "child_process"
 import {
 	SyncServiceClient,
-	RegisterSyncRequest,
 	RegisterSyncResponse,
-	ShareAccessTokenRequest,
 	ShareAccessTokenResponse,
-	UnregisterSyncRequest,
-	VersionRequest,
 	VersionResponse,
 } from "./types/codebase_syncer"
 import { ClineProvider } from "../webview/ClineProvider"
@@ -181,48 +177,61 @@ export class ZgsmCodeBaseService {
 	}
 
 	/** ====== grpc Communication ====== */
-	async registerSync(request: RegisterSyncRequest): Promise<RegisterSyncResponse> {
+	async registerSync(): Promise<RegisterSyncResponse> {
 		return this.retryWrapper("registerSync", () => {
 			return new Promise((resolve, reject) => {
 				if (!this.client) {
 					return reject(new Error("client not init!"))
 				}
-				this.client.registerSync(request, (err: grpc.ServiceError | null, response?: RegisterSyncResponse) => {
-					if (err) return reject(err)
-					resolve(response!)
-				})
+
+				this.client.registerSync(
+					{
+						clientId: this.clientId,
+						workspacePath: this.workspacePath,
+						workspaceName: this.workspaceName,
+					},
+					(err: grpc.ServiceError | null, response?: RegisterSyncResponse) => {
+						if (err) return reject(err)
+						resolve(response!)
+					},
+				)
 			})
 		})
 	}
 
-	async unregisterSync(
-		request: UnregisterSyncRequest = {
-			clientId: this.clientId,
-			workspacePath: this.workspacePath,
-			workspaceName: this.workspaceName,
-		},
-	): Promise<void> {
+	async unregisterSync(): Promise<void> {
 		return this.retryWrapper("unregisterSync", () => {
 			return new Promise((resolve, reject) => {
 				if (!this.client) {
 					return reject(new Error("client not init!"))
 				}
-				this.client.unregisterSync(request, (err: grpc.ServiceError | null) => {
-					if (err) return reject(err)
-					resolve()
-				})
+				this.client.unregisterSync(
+					{
+						clientId: this.clientId,
+						workspacePath: this.workspacePath,
+						workspaceName: this.workspaceName,
+					},
+					(err: grpc.ServiceError | null) => {
+						if (err) return reject(err)
+						resolve()
+					},
+				)
 			})
 		})
 	}
 
-	async shareAccessToken(request: ShareAccessTokenRequest): Promise<ShareAccessTokenResponse> {
+	async shareAccessToken(): Promise<ShareAccessTokenResponse> {
 		return this.retryWrapper("shareAccessToken", () => {
 			return new Promise((resolve, reject) => {
 				if (!this.client) {
 					return reject(new Error("client not init!"))
 				}
 				this.client.shareAccessToken(
-					request,
+					{
+						accessToken: this.accessToken,
+						clientId: this.clientId,
+						serverEndpoint: this.serverEndpoint,
+					},
 					(err: grpc.ServiceError | null, response?: ShareAccessTokenResponse) => {
 						if (err) return reject(err)
 						resolve(response!)
@@ -232,15 +241,18 @@ export class ZgsmCodeBaseService {
 		})
 	}
 
-	async getLocalClientInfo(request: VersionRequest): Promise<VersionResponse> {
+	async getLocalClientInfo(): Promise<VersionResponse> {
 		return new Promise((resolve, reject) => {
 			if (!this.client) {
 				return reject(new Error("client not init!"))
 			}
-			this.client.getVersion(request, (err: grpc.ServiceError | null, response?: VersionResponse) => {
-				if (err) return reject(err)
-				resolve(response!)
-			})
+			this.client.getVersion(
+				{ clientId: this.clientId },
+				(err: grpc.ServiceError | null, response?: VersionResponse) => {
+					if (err) return reject(err)
+					resolve(response!)
+				},
+			)
 		})
 	}
 
@@ -387,7 +399,7 @@ export class ZgsmCodeBaseService {
 	public async startSync(version: string): Promise<void> {
 		this.stopRegisterSyncPoll()
 
-		const { data } = await this.getLocalClientInfo({ clientId: this.clientId }).catch(() => ({
+		const { data } = await this.getLocalClientInfo().catch(() => ({
 			data: { version: "" },
 		}))
 		const isRunning = await this.isProcessRunning()
@@ -402,16 +414,8 @@ export class ZgsmCodeBaseService {
 		this.client?.close()
 		this.client = new SyncServiceClient(this.address, grpc.credentials.createInsecure())
 		this.client.waitForReady(1000, async () => {
-			await this.shareAccessToken({
-				accessToken: this.accessToken,
-				clientId: this.clientId,
-				serverEndpoint: this.serverEndpoint,
-			})
-			await this.registerSync({
-				clientId: this.clientId,
-				workspacePath: this.workspacePath,
-				workspaceName: this.workspaceName,
-			})
+			await this.shareAccessToken()
+			await this.registerSync()
 			this.curVersion = version
 			this.registerSyncPoll()
 		})
@@ -419,11 +423,7 @@ export class ZgsmCodeBaseService {
 
 	registerSyncPoll() {
 		const sync = () => {
-			this.registerSync({
-				clientId: this.clientId,
-				workspacePath: this.workspacePath,
-				workspaceName: this.workspaceName,
-			})
+			this.registerSync()
 			this.registerSyncTimeout = setTimeout(sync, 1000 * 60 * 4.5)
 		}
 		this.registerSyncTimeout = setTimeout(sync, 1000 * 60 * 4.5)
@@ -470,7 +470,7 @@ export class ZgsmCodeBaseService {
 
 		const sync = async () => {
 			try {
-				const { data } = await this.getLocalClientInfo({ clientId: this.clientId })
+				const { data } = await this.getLocalClientInfo()
 
 				if (data?.version !== this.curVersion) {
 					throw new Error("Version is not match")
