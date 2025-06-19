@@ -60,10 +60,13 @@ import { telemetryService } from "../../services/telemetry/TelemetryService"
 import { getWorkspacePath } from "../../utils/path"
 import { webviewMessageHandler } from "./webviewMessageHandler"
 import { WebviewMessage } from "../../shared/WebviewMessage"
-import { getZgsmAccessToken } from "../../zgsmAuth/zgsmAuthHandler"
+import { getZgsmAccessToken, refreshZgsmAccessToken } from "../../zgsmAuth/zgsmAuthHandler"
 // import { defaultZgsmAuthConfig } from "../../zgsmAuth/config"
 import { CompletionStatusBar } from "../../../zgsm/src/codeCompletion/completionStatusBar"
 import { defaultLang } from "../../utils/language"
+import { parseJwt } from "../../utils/authToken"
+// import { silentRefreshToken } from "../../zgsmAuth/refresh"
+// import { generateZgsmAuthUrl } from "../../shared/zgsmAuthUrl"
 
 /**
  * https://github.com/microsoft/vscode-webview-ui-toolkit-samples/blob/main/default/weather-webview/src/providers/WeatherViewProvider.ts
@@ -84,6 +87,7 @@ export class ClineProvider extends EventEmitter<ClineProviderEvents> implements 
 	private disposables: vscode.Disposable[] = []
 	private view?: vscode.WebviewView | vscode.WebviewPanel
 	private clineStack: Task[] = []
+	private refreshZgsmTokenPolling: NodeJS.Timeout | number | undefined
 	private _workspaceTracker?: WorkspaceTracker // workSpaceTracker read-only for access outside this class
 	public get workspaceTracker(): WorkspaceTracker | undefined {
 		return this._workspaceTracker
@@ -1062,15 +1066,16 @@ export class ClineProvider extends EventEmitter<ClineProviderEvents> implements 
 	// Zgsm
 
 	async handleZgsmAuthCallback(code: string | null, state: string | null, token: string | null, needVisible = true) {
-		let { apiConfiguration, currentApiConfigName } = await this.getState()
 		const visibleProvider = await ClineProvider.getInstance()
 
 		if (!visibleProvider && needVisible) {
 			return
 		}
 
-		let apiKey = ""
+		const { apiConfiguration } = await this.getState()
 
+		let apiKey = ""
+		let zgsmRefreshToken = ""
 		CompletionStatusBar.login()
 
 		if (token) {
@@ -1078,13 +1083,14 @@ export class ClineProvider extends EventEmitter<ClineProviderEvents> implements 
 		} else if (code) {
 			try {
 				// Extract the base domain for the auth endpoint
-				const access_token = await getZgsmAccessToken(code, apiConfiguration)
+				const { access_token, refresh_token } = await getZgsmAccessToken(code, apiConfiguration)
 
 				if (!access_token) {
 					throw new Error(`Failed to get access token`)
 				}
 
 				apiKey = access_token
+				zgsmRefreshToken = refresh_token
 			} catch (error) {
 				this.log(
 					`Error exchanging code for API key: ${JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}`,
@@ -1097,20 +1103,33 @@ export class ClineProvider extends EventEmitter<ClineProviderEvents> implements 
 				throw error
 			}
 		}
+
+		await this.convertZgsmToken({ zgsmApiKey: apiKey, zgsmRefreshToken })
+		this.refreshZgsmToken(zgsmRefreshToken)
+
+		vscode.window.showInformationMessage("Shenma login successful")
+
+		CompletionStatusBar.complete()
+		CompletionStatusBar.resetCommand()
+	}
+
+	async convertZgsmToken(data: ProviderSettings) {
+		const { apiConfiguration, currentApiConfigName } = await this.getState()
+
 		const zgsmApiKeyUpdatedAt = Date.now()
 
 		const newConfiguration: ApiConfiguration = {
 			...apiConfiguration,
+			...data,
 			zgsmModelId: apiConfiguration.zgsmModelId || apiConfiguration.zgsmDefaultModelId,
-			zgsmApiKey: apiKey,
 			isZgsmApiKeyValid: true,
 			zgsmApiKeyUpdatedAt,
 		}
 
 		await this.providerSettingsManager.saveMergeConfig(
 			{
+				...data,
 				zgsmBaseUrl: newConfiguration.zgsmBaseUrl,
-				zgsmApiKey: apiKey,
 				isZgsmApiKeyValid: true,
 				zgsmApiKeyUpdatedAt,
 			},
@@ -1122,14 +1141,62 @@ export class ClineProvider extends EventEmitter<ClineProviderEvents> implements 
 		// handleZgsmAuthCallback
 		await this.postMessageToWebview({
 			type: "afterZgsmPostLogin",
-			values: { zgsmApiKey: apiKey, zgsmApiKeyUpdatedAt },
+			values: { ...data, zgsmApiKeyUpdatedAt },
 		})
-		vscode.window.showInformationMessage("Shenma login successful")
-
-		CompletionStatusBar.complete()
-		CompletionStatusBar.resetCommand()
 	}
 
+	async refreshZgsmToken(refresh_token?: string) {
+		const { apiConfiguration } = await this.getState()
+		let attempt = 1
+		refresh_token = refresh_token || apiConfiguration.zgsmRefreshToken || ""
+
+		if (!refresh_token) {
+			return
+		}
+		clearTimeout(this.refreshZgsmTokenPolling)
+
+		const refresh = async (refresh_token: string) => {
+			try {
+				const { apiConfiguration } = await this.getState()
+				const { access_token, refresh_token: newRefreshToken } = await refreshZgsmAccessToken(
+					refresh_token,
+					apiConfiguration,
+				)
+
+				this.convertZgsmToken({ zgsmApiKey: access_token, zgsmRefreshToken: newRefreshToken })
+				refresh_token = newRefreshToken
+
+				console.log(`[refreshZgsmToken access_token (${Date.now()})]: \n `, access_token)
+				console.log(`[refreshZgsmToken refresh_token (${Date.now()})]: \n `, refresh_token)
+
+				this.refreshZgsmTokenPolling = setTimeout(
+					refresh,
+					this.getZgsmRefreshTokenInterval(refresh_token),
+					refresh_token,
+				)
+				attempt = 0
+			} catch (error) {
+				this.log(error)
+
+				if (attempt > 5) {
+					attempt = 0
+				}
+
+				this.refreshZgsmTokenPolling = setTimeout(refresh, attempt * 30000, refresh_token)
+			}
+		}
+
+		this.refreshZgsmTokenPolling = setTimeout(
+			refresh,
+			this.getZgsmRefreshTokenInterval(refresh_token),
+			refresh_token,
+		)
+	}
+
+	getZgsmRefreshTokenInterval(token: string) {
+		const { exp } = parseJwt(token)
+		return Math.min((exp - 1800) * 1000 - Date.now(), 2147483647)
+	}
 	// Glama
 
 	async handleGlamaCallback(code: string) {

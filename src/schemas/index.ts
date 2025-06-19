@@ -607,6 +607,7 @@ const defaultSchema = z.object({
 const zgsmSchema = z.object({
 	zgsmBaseUrl: z.string().optional(),
 	zgsmApiKey: z.string().optional(),
+	zgsmRefreshToken: z.string().optional(),
 	zgsmModelId: z.string().optional(),
 	zgsmModels: z.array(z.string()).optional(),
 	zgsmDefaultBaseUrl: z.string().optional(),
@@ -687,6 +688,7 @@ const providerSettingsRecord: ProviderSettingsRecord = {
 	// Zgsm
 	zgsmBaseUrl: undefined,
 	zgsmApiKey: undefined,
+	zgsmRefreshToken: undefined,
 	zgsmModelId: undefined,
 	zgsmModels: undefined,
 	zgsmSite: undefined,
@@ -978,6 +980,7 @@ export type SecretState = Pick<
 	ProviderSettings,
 	| "apiKey"
 	| "zgsmApiKey"
+	| "zgsmRefreshToken"
 	| "glamaApiKey"
 	| "openRouterApiKey"
 	| "awsAccessKey"
@@ -1001,6 +1004,7 @@ type SecretStateRecord = Record<Keys<SecretState>, undefined>
 const secretStateRecord: SecretStateRecord = {
 	apiKey: undefined,
 	zgsmApiKey: undefined,
+	zgsmRefreshToken: undefined,
 	glamaApiKey: undefined,
 	openRouterApiKey: undefined,
 	awsAccessKey: undefined,

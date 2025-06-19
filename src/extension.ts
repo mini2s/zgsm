@@ -178,7 +178,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		})
 		context.subscriptions.push(watcher)
 	}
-
+	provider.refreshZgsmToken()
 	return new API(outputChannel, provider, socketPath, enableLogging)
 }
 

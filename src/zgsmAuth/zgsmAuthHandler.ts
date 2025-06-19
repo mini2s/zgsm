@@ -124,7 +124,54 @@ export async function getZgsmAccessToken(code: string, apiConfiguration?: ApiCon
 
 		const data = await res.json()
 
-		return data?.access_token
+		return data
+	} catch (err) {
+		console.error("fetchToken: Axios error:", err.message)
+		throw err
+	}
+}
+
+/**
+ * Get access token
+ * @param code Authorization code
+ * @param apiConfiguration API configuration
+ * @returns Response containing access token
+ */
+export async function refreshZgsmAccessToken(refresh_token: string, apiConfiguration?: ApiConfiguration) {
+	try {
+		const { tokenUrl } = await defaultZgsmAuthConfig.getAuthUrls(apiConfiguration?.zgsmBaseUrl)
+
+		// Prefer configuration in apiConfiguration, if not exist, use environment settings
+		const clientId = apiConfiguration?.zgsmClientId || defaultZgsmAuthConfig.clientId
+		const clientSecret = apiConfiguration?.zgsmClientSecret || defaultZgsmAuthConfig.clientSecret
+
+		// Set request parameters
+		const params = {
+			client_id: clientId,
+			client_secret: clientSecret,
+			refresh_token,
+			grant_type: "refresh_token",
+		}
+
+		// Use querystring to convert object to application/x-www-form-urlencoded format
+		const formData = querystring.stringify(params)
+
+		// Use fetch to send request and get token, add created request headers
+		const res = await fetch(tokenUrl, {
+			method: "POST",
+			headers: createHeaders({
+				"Content-Type": "application/x-www-form-urlencoded",
+			}),
+			body: formData,
+		})
+
+		if (!res.ok) {
+			throw new Error(`Failed to get token: ${await res.text()}`)
+		}
+
+		const data = await res.json()
+
+		return data
 	} catch (err) {
 		console.error("fetchToken: Axios error:", err.message)
 		throw err
