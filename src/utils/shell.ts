@@ -83,16 +83,23 @@ function getLinuxTerminalConfig() {
 /** Attempts to retrieve a shell path from VS Code config on Windows. */
 function getWindowsShellFromVSCode(): string | null {
 	const { defaultProfileName, profiles } = getWindowsTerminalConfig()
+	console.log("[getWindowsShellFromVSCode] defaultProfileName, profiles", defaultProfileName, profiles)
+
 	if (!defaultProfileName) {
+		console.log("[getWindowsShellFromVSCode] !defaultProfileName")
+
 		return null
 	}
 
 	const profile = profiles[defaultProfileName]
+	console.log("[getWindowsShellFromVSCode] profile", profile)
 
 	// If the profile name indicates PowerShell, do version-based detection.
 	// In testing it was found these typically do not have a path, and this
 	// implementation manages to deductively get the corect version of PowerShell
 	if (defaultProfileName.toLowerCase().includes("powershell")) {
+		console.log("[getWindowsShellFromVSCode] powershell", profile)
+
 		if (profile?.path) {
 			// If there's an explicit PowerShell path, return that
 			return profile.path
@@ -106,13 +113,18 @@ function getWindowsShellFromVSCode(): string | null {
 
 	// If there's a specific path, return that immediately
 	if (profile?.path) {
+		console.log("[getWindowsShellFromVSCode] profile?.path", profile.path)
+
 		return profile.path
 	}
 
 	// If the profile indicates WSL
 	if (profile?.source === "WSL" || defaultProfileName.toLowerCase().includes("wsl")) {
+		console.log("[getWindowsShellFromVSCode] wsl", SHELL_PATHS.WSL_BASH)
+
 		return SHELL_PATHS.WSL_BASH
 	}
+	console.log("[getWindowsShellFromVSCode] SHELL_PATHS.CMD", SHELL_PATHS.CMD)
 
 	// If nothing special detected, we assume cmd
 	return SHELL_PATHS.CMD

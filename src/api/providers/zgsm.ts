@@ -36,7 +36,7 @@ export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler
 	protected options: OpenAiHandlerOptions
 	private client: OpenAI
 	private taskId = ""
-	private chatType?: "user" | "system"
+	private chatType?: "user" | "system" | "review"
 
 	constructor(options: OpenAiHandlerOptions) {
 		super()
