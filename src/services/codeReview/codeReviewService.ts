@@ -98,18 +98,19 @@ export class CodeReviewService {
 		if (!this.clineProvider) {
 			return {}
 		}
-		const { apiConfiguration } = await this.clineProvider.getState()
+		const { apiConfiguration, language } = await this.clineProvider.getState()
 		const apiKey = apiConfiguration.zgsmApiKey
 		const baseURL = apiConfiguration.zgsmBaseUrl || "https://zgsm.sangfor.com"
 		return {
 			baseURL,
 			headers: {
 				Authorization: `Bearer ${apiKey}`,
+				"Accept-Language": language,
 			},
 		}
 	}
 
-	private async handleAuthError() {
+	public async handleAuthError() {
 		if (!this.clineProvider) return
 		this.sendReviewTaskUpdateMessage(TaskStatus.ERROR, {
 			issues: [],
@@ -631,6 +632,14 @@ export class CodeReviewService {
 				status,
 				data,
 			},
+		})
+	}
+
+	public pushErrorToWebview(error: any): void {
+		this.sendReviewTaskUpdateMessage(TaskStatus.ERROR, {
+			issues: [],
+			progress: 0,
+			error: error.message,
 		})
 	}
 
