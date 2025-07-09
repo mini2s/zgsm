@@ -1,6 +1,4 @@
-import osName from "os-name"
 import { DiffStrategy } from "../../../shared/tools"
-import { getShell } from "../../../utils/shell"
 
 function getEditingInstructions(diffStrategy?: DiffStrategy): string {
 	const instructions: string[] = []
@@ -55,18 +53,7 @@ RULES
 - All file paths must be relative to this directory. However, commands may change directories in terminals, so respect working directory specified by the response to <execute_command>.
 - You cannot \`cd\` into a different directory to complete a task. You are stuck operating from '${cwd.toPosix()}', so be sure to pass in the correct 'path' parameter when using tools that require a path.
 - Do not use the ~ character or $HOME to refer to the home directory.
-- Before using the execute_command tool, you must first analyze the SYSTEM INFORMATION context to determine the user's operating system (e.g., Windows, macOS, or Linux). Based on this, adapt your command format to be compatible with the target system.
-    Current System Information (Operating System: ${osName()}, Default Shell: ${getShell()})
-	1.Guidelines:
-	- Use proper path formats:
-		- Use \`/\` for Linux/macOS paths.
-		- Use \`\\\` or escaped paths for Windows (\`C:\\\\path\\\\to\\\\folder\` or \`cd "C:\\path\\to\\folder"\`).
-	- Use appropriate command chaining syntax:
-		- Bash/macOS/Linux: \`cd /target/path && command\`
-		- Windows CMD: \`cd \\target\\path && command\`
-		- Windows PowerShell: \`cd 'C:\\target\\path'; command\`
-	2.If the command needs to be run outside of the current working directory \`\${cwd}\`, always prepend with a system-compatible directory change command. Avoid hardcoding \`\${cwd.toPosix()}\` and instead adapt dynamically based on OS.
-	3.Always verify the syntax and structure of the generated command to match the conventions of the detected operating system.
+- Before using the execute_command tool, you must first think about the SYSTEM INFORMATION context provided to understand the user's environment and tailor your commands to ensure they are compatible with their system. You must also consider if the command you need to run should be executed in a specific directory outside of the current working directory '${cwd.toPosix()}', and if so prepend with \`cd\`'ing into that directory && then executing the command (as one command since you are stuck operating from '${cwd.toPosix()}'). For example, if you needed to run \`npm install\` in a project outside of '${cwd.toPosix()}', you would need to prepend with a \`cd\` i.e. pseudocode for this would be \`cd (path to project) && (command, in this case npm install)\`.
 - When using the search_files tool, craft your regex patterns carefully to balance specificity and flexibility. Based on the user's task you may use it to find code patterns, TODO comments, function definitions, or any text-based information across the project. The results include context, so analyze the surrounding code to better understand the matches. Leverage the search_files tool in combination with other tools for more comprehensive analysis. For example, use it to find specific code patterns, then use read_file to examine the full context of interesting matches before using ${diffStrategy ? "apply_diff or write_to_file" : "write_to_file"} to make informed changes.
 - When creating a new project (such as an app, website, or any software project), organize all new files within a dedicated project directory unless the user specifies otherwise. Use appropriate file paths when writing files, as the write_to_file tool will automatically create any necessary directories. Structure the project logically, adhering to best practices for the specific type of project being created. Unless otherwise specified, new projects should be easily run without additional setup, for example most projects can be built in HTML, CSS, and JavaScript - which you can open in a browser.
 ${getEditingInstructions(diffStrategy)}

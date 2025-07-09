@@ -17,6 +17,8 @@ import { formatResponse } from "../prompts/responses"
 
 import { Task } from "../task/Task"
 import { defaultLang } from "../../utils/language"
+import { getShell } from "../../utils/shell"
+import osName from "os-name"
 
 export async function getEnvironmentDetails(cline: Task, includeFileDetails: boolean = false) {
 	let details = ""
@@ -218,6 +220,8 @@ export async function getEnvironmentDetails(cline: Task, includeFileDetails: boo
 		language: language ?? formatLanguage(await defaultLang()),
 	})
 
+	details += `\n\n# Operating System\n: ${osName()}`
+	details += `\n\n# Default Shell\n${getShell()}`
 	details += `\n\n# Current Mode\n`
 	details += `<slug>${currentMode}</slug>\n`
 	details += `<name>${modeDetails.name}</name>\n`
