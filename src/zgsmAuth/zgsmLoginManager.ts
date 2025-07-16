@@ -4,11 +4,11 @@ import { LoginState, LoginStatus, LoginStatusResponse, LoginTokenResponse, Login
 import { generateZgsmStateId } from "../shared/zgsmAuthUrl"
 import { Package } from "../schemas"
 import { parseJwt } from "../utils/jwt"
-import { statusBarloginCallback } from "../core/zgsm/common/services"
+import { statusBarloginCallback } from "../core/zgsm-base/common/services"
 import { t } from "../i18n"
 import { zgsmProviderKey } from "../shared/api"
 import { initZgsmCodeBase } from "../core/codebase"
-import { CompletionStatusBar } from "../core/zgsm/completion/completionStatusBar"
+import { CompletionStatusBar } from "../core/zgsm-base/completion/completionStatusBar"
 import { sendTokens } from "./ipc/client"
 import { getClientId } from "../utils/getClientId"
 

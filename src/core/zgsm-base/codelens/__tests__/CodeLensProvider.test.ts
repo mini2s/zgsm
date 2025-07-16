@@ -2,7 +2,7 @@
  * Unit tests for MyCodeLensProvider class
  */
 import { MyCodeLensProvider } from "../CodeLensProvider"
-import { TextDocument, CancellationToken, window, workspace, commands, CodeLens, Range, Position } from "vscode"
+import { TextDocument, CancellationToken, window, workspace, commands, CodeLens, Range } from "vscode"
 import { getLanguageClass } from "../../language/factory"
 import { LangSetting, LangSwitch, getLanguageByFilePath } from "../../common/lang-util"
 import { CODELENS_FUNC } from "../../common/constant"

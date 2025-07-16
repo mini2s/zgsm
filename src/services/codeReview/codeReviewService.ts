@@ -21,7 +21,7 @@ import { createReviewTaskAPI, getReviewResultsAPI, updateIssueStatusAPI, cancelR
 import { ExtensionMessage } from "../../shared/ExtensionMessage"
 import { ReviewComment } from "./reviewComment"
 import { t } from "../../i18n"
-import { statusBarloginCallback } from "../../core/zgsm/common/services"
+import { statusBarloginCallback } from "../../core/zgsm-base/common/services"
 import path from "node:path"
 import type { AxiosRequestConfig } from "axios"
 import { Package } from "../../schemas"

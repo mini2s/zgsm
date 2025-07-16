@@ -1,7 +1,7 @@
 import * as vscode from "vscode"
 import * as dotenvx from "@dotenvx/dotenvx"
 import * as path from "path"
-import * as ZgsmCore from "./core/zgsm"
+import * as ZgsmCore from "./core/zgsm-base"
 
 // Load environment variables from .env file
 try {

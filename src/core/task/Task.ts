@@ -1755,7 +1755,7 @@ export class Task extends EventEmitter<ClineEvents> {
 						"chat-rag.internal_error",
 					].includes(code)
 				) {
-					solution = `\n\n${t("apiErrors:request.solution")}\n\n${t(`apiErrors.solution.${code}`)}`
+					solution = `\n\n${t("apiErrors:request.solution")}\n\n${t(`apiErrors:solution.${code}`)}`
 					if (code === "chat-rag.internal_error") {
 						error.status = status = 500
 					} else if (code === "chat-rag.context_length_exceeded") {
