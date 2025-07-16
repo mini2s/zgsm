@@ -11,6 +11,7 @@ mock/
 # IDEs
 .idea
 .history
+.kiro
 # Builds
 bin/
 *.vsix
