@@ -75,6 +75,7 @@ export class CompletionStatusBar {
 	 * Initialize the initial display status of the status bar based on the configuration
 	 */
 	public static initByConfig(suggestion_switch?: boolean) {
+		if (!this.instance) this.create({ subscriptions: [] } as any)
 		if (suggestion_switch === undefined) {
 			suggestion_switch = vscode.workspace.getConfiguration(configCompletion).get("enabled")
 		}
@@ -91,22 +92,27 @@ export class CompletionStatusBar {
 	 * Waiting for request results
 	 */
 	public static loading() {
+		if (!this.instance) this.create({ subscriptions: [] } as any)
 		this.instance.tooltip = t("common:completion.status.loading.tooltip")
 		this.instance.text = t("common:completion.status.loading.text")
+		this.instance.show()
 	}
 
 	/**
 	 * Completion is done
 	 */
 	public static complete() {
+		if (!this.instance) this.create({ subscriptions: [] } as any)
 		this.instance.tooltip = t("common:completion.status.complete.tooltip")
 		this.instance.text = t("common:completion.status.complete.text")
+		this.instance.show()
 	}
 
 	/**
 	 * Completion failed
 	 */
 	public static fail(error: IFailError) {
+		if (!this.instance) this.create({ subscriptions: [] } as any)
 		let codeMsg
 		let solutionMsg
 
@@ -151,23 +157,29 @@ export class CompletionStatusBar {
 
 		this.instance.tooltip = t("common:completion.status.fail.tooltip") + solutionMsg
 		this.instance.text = t("common:completion.status.fail.text") + codeMsg
+		this.instance.show()
 	}
 
 	/**
 	 * Completion succeeded, but no suggestions
 	 */
 	public static noSuggest() {
+		if (!this.instance) this.create({ subscriptions: [] } as any)
 		this.instance.tooltip = t("common:completion.status.noSuggest.tooltip")
 		this.instance.text = t("common:completion.status.noSuggest.text")
+		this.instance.show()
 	}
 
 	public static login() {
+		if (!this.instance) this.create({ subscriptions: [] } as any)
 		this.instance.command = undefined
 		this.instance.text = t("common:completion.status.login.text")
 		this.instance.tooltip = ""
+		this.instance.show()
 	}
 
 	public static resetCommand() {
+		if (!this.instance) this.create({ subscriptions: [] } as any)
 		this.instance.command = statusBarCommand.command
 	}
 }
