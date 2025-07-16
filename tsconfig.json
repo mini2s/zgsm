@@ -18,8 +18,18 @@
 		"strict": true,
 		"target": "es2022",
 		"useDefineForClassFields": true,
-		"useUnknownInCatchVariables": false
+		"useUnknownInCatchVariables": false,
+		"baseUrl": ".",
+		"paths": {
+			"@zgsm/*": ["src/core/zgsm/*"],
+			"@zgsm/completion": ["src/core/zgsm/completion"],
+			"@zgsm/codelens": ["src/core/zgsm/codelens"],
+			"@zgsm/common": ["src/core/zgsm/common"],
+			"@zgsm/language": ["src/core/zgsm/language"],
+			"@zgsm/i18n": ["src/core/zgsm/i18n"],
+			"@zgsm/data": ["src/core/zgsm/data"]
+		}
 	},
-	"include": ["src/**/*", "scripts/**/*", ".changeset/**/*", "zgsm/**/*"],
+	"include": ["src/**/*", "scripts/**/*", ".changeset/**/*"],
 	"exclude": ["node_modules", ".vscode-test", "webview-ui", ".idea", ".qodo"]
 }

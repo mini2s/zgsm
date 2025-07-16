@@ -46,6 +46,33 @@ Costrict is a **free**, **open-source AI-assisted programming tool** that suppor
 
 ![morefeature](./assets/images/readme/more-feature_en.png)
 
+## Technical Architecture
+
+### Core Module Structure
+
+Costrict adopts a modular architecture design with core functionality organized under the `src/core/zgsm/` directory:
+
+```
+src/core/zgsm/
+├── completion/          # AI code completion module
+├── codelens/           # Quick action buttons module
+├── common/             # Shared utilities module
+├── language/           # Language-specific functionality module
+├── i18n/               # Internationalization module
+└── data/               # Static data files module
+```
+
+### Module Responsibilities
+
+- **completion/**: Handles AI-driven code auto-completion functionality, including completion providers, API clients, caching mechanisms, etc.
+- **codelens/**: Provides quick action buttons above function definitions, supporting features like explanation, commenting, testing, etc.
+- **common/**: Contains cross-module shared utility functions, services, constants, and VS Code integration tools
+- **language/**: Provides programming language-specific support, including language detection, syntax analysis, etc.
+- **i18n/**: Supports multi-language internationalization, containing translation files and settings for various languages
+- **data/**: Stores static configuration data such as language extension mappings, etc.
+
+For detailed architecture documentation, please refer to: [ZGSM Migration Guide](docs/ZGSM_MIGRATION_GUIDE.md)
+
 ## Quick Start
 
 ### Deployment

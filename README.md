@@ -68,6 +68,33 @@ Costrict是一款免费开源的AI辅助编程工具，支持企业私有化部�
 
 请参考 开发文档
 
+## 技术架构 Technical Architecture
+
+### 核心模块结构 Core Module Structure
+
+Costrict采用模块化架构设计，核心功能组织在 `src/core/zgsm/` 目录下：
+
+```
+src/core/zgsm/
+├── completion/          # 代码补全模块 - AI code completion
+├── codelens/           # 代码镜头模块 - Quick action buttons
+├── common/             # 通用工具模块 - Shared utilities
+├── language/           # 语言支持模块 - Language-specific functionality
+├── i18n/               # 国际化模块 - Internationalization
+└── data/               # 静态数据模块 - Static data files
+```
+
+### 模块职责 Module Responsibilities
+
+- **completion/**: 处理AI驱动的代码自动补全功能，包括补全提供者、API客户端、缓存机制等
+- **codelens/**: 提供函数定义上方的快捷操作按钮，支持解释、注释、测试等功能
+- **common/**: 包含跨模块共享的工具函数、服务、常量和VS Code集成工具
+- **language/**: 提供特定编程语言的支持，包括语言检测、语法分析等功能
+- **i18n/**: 支持多语言国际化，包含各语言的翻译文件和设置
+- **data/**: 存储静态配置数据，如语言扩展名映射等
+
+详细的架构文档请参考：[ZGSM迁移指南](docs/ZGSM_MIGRATION_GUIDE.md)
+
 ## 如何贡献
 
 Costrict是由友好的用户、贡献者、提交者和项目管理委员会成员共同开发和维护的开源项目。

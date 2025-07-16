@@ -1,7 +1,7 @@
 import * as vscode from "vscode"
 import * as dotenvx from "@dotenvx/dotenvx"
 import * as path from "path"
-import * as zgsm from "../zgsm/src/extension"
+import * as ZgsmCore from "./core/zgsm"
 
 // Load environment variables from .env file
 try {
@@ -119,7 +119,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		},
 	)
 	telemetryService.setProvider(provider)
-	await zgsm.activate(context, provider)
+	await ZgsmCore.activate(context, provider)
 	ZgsmCodeBaseSyncService.setProvider(provider)
 	const zgsmApiKey = provider.getValue("zgsmApiKey")
 	const zgsmBaseUrl = provider.getValue("zgsmBaseUrl") || defaultZgsmAuthConfig.baseUrl
@@ -247,7 +247,7 @@ export async function activate(context: vscode.ExtensionContext) {
 // This method is called when your extension is deactivated.
 export async function deactivate() {
 	await ZgsmCodeBaseSyncService.stopSync()
-	await zgsm.deactivate()
+	ZgsmCore.deactivate()
 
 	// Clean up IPC connections
 	disconnectIPC()
