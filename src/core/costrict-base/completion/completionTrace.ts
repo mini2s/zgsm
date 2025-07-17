@@ -7,13 +7,14 @@
  * copies or substantial portions of the Software.
  */
 import { Logger } from "../common/log-util"
-import { envSetting } from "../common/env"
-import { createAuthenticatedHeaders } from "../common/api"
 import { CompletionPoint } from "./completionPoint"
 import { getAcceptionString, getCorrectionString } from "./completionDataInterface"
 import { CompletionCache } from "./completionCache"
 // import { writeLogsSync } from "../common/vscode-util"
 import * as vscode from "vscode"
+import { createHeaders } from "../../../zgsmAuth/zgsmAuthHandler"
+import { defaultZgsmAuthConfig } from "../../../zgsmAuth/config"
+import { ClineProvider } from "../../webview/ClineProvider"
 
 /**
  * Completion metrics memo
@@ -36,6 +37,7 @@ export class CompletionTrace {
 	private axios = require("axios") // AJAX communication
 	private static client: CompletionTrace | undefined = undefined // Trace data reporting client (singleton)
 	private context: vscode.ExtensionContext
+	private provider?: ClineProvider
 	private errors = new Map<string, number>() // Error counts for each status
 	private openApiTotal: number = 0 // Total number of openapi calls
 	private openApiCancel: number = 0 // Number of openapi calls canceled
@@ -46,16 +48,18 @@ export class CompletionTrace {
 	private uploadFailed: number = 0 // Number of failed upload API calls
 	private lastUploadError: number = 0 // Total error count (openApiError) at the last successful upload
 
-	constructor(context: vscode.ExtensionContext) {
+	constructor(context: vscode.ExtensionContext, provider?: ClineProvider) {
 		this.context = context
+		this.provider = provider
 	}
 
-	public static init(context: vscode.ExtensionContext) {
+	public static init(context: vscode.ExtensionContext, provider: ClineProvider) {
 		const client = this.getInstance(context)
 		const memo: CompletionMemo | undefined = client.context.globalState.get("trace")
 		if (!memo) {
 			return
 		}
+		client.provider = provider
 		client.openApiTotal = memo.openapi_total
 		client.openApiError = memo.openapi_error
 		client.openApiCancel = memo.openapi_cancel
@@ -99,8 +103,9 @@ export class CompletionTrace {
 	 * Upload and clear a batch of completion point data
 	 */
 	public static async uploadPoints(): Promise<number> {
-		const url = `${envSetting.baseUrl}/api/feedbacks/completions`
 		const client = this.getInstance()
+		const state = await client.provider?.getState()
+		const url = `${state?.apiConfiguration?.zgsmBaseUrl || defaultZgsmAuthConfig.baseUrl}/api/feedbacks/completions`
 		const datas = this.constructDatas()
 		if (datas.count === 0) {
 			return 0
@@ -141,7 +146,9 @@ export class CompletionTrace {
 		if (client.openApiError === client.lastUploadError) {
 			return
 		}
-		const url = `${envSetting.baseUrl}/api/feedbacks/error`
+		const state = await client.provider?.getState()
+
+		const url = `${state?.apiConfiguration?.zgsmBaseUrl || defaultZgsmAuthConfig.baseUrl}/api/feedbacks/error`
 		await client
 			.postDatas(url, data)
 			.then(() => {
@@ -208,7 +215,7 @@ export class CompletionTrace {
 		return (
 			this.axios
 				.post(url, data, {
-					headers: createAuthenticatedHeaders(),
+					headers: createHeaders(),
 				})
 				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				.then(function (response: { data: any }) {

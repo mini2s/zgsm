@@ -12,9 +12,7 @@
 // Core exports
 export * from "./constant"
 export * from "./log-util"
-export * from "./api"
 export * from "./util"
 export * from "./vscode-util"
-export * from "./env"
 export * from "./lang-util"
 export * from "./services"

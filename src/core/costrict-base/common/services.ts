@@ -10,7 +10,6 @@
 import * as vscode from "vscode"
 // import { getExtensionsLatestVersion } from "./api"
 import { configCompletion, configCodeLens, ZGSM_API_KEY, ZGSM_BASE_URL } from "./constant"
-// import { envSetting } from "./env"
 import { Logger } from "./log-util"
 import { LangSetting, LangSwitch, LangDisables, getLanguageByFilePath } from "./lang-util"
 // import { DateFormat, formatTime, formatTimeDifference } from "./util"

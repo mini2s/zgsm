@@ -12,7 +12,6 @@ import { defaultZgsmAuthConfig } from "../../../zgsmAuth/config"
 import { Logger } from "../common/log-util"
 import { workspace } from "vscode"
 import { AxiosError } from "axios"
-import { createAuthenticatedHeaders } from "../common/api"
 import * as vscode from "vscode"
 import {
 	configCompletion,
@@ -31,6 +30,7 @@ import { ClineProvider } from "../../webview/ClineProvider"
 import { CompletionAcception } from "./completionDataInterface"
 import { getDependencyImports } from "./extractingImports"
 import { getClientId } from "../../../utils/getClientId"
+import { createHeaders } from "../../../zgsmAuth/zgsmAuthHandler"
 /**
  * Completion client, which handles the details of communicating with the large model API and shields the communication details from the caller.
  * The caller can handle network communication as conveniently as calling a local function.
@@ -271,7 +271,7 @@ export class CompletionClient {
 		this.reqs.set(cp.id, abortController)
 
 		Logger.log(`Completion [${cp.id}]: Sending API request`)
-		const headers = createAuthenticatedHeaders()
+		const headers = createHeaders()
 		const repo = workspace?.name?.split(" ")[0] ?? ""
 
 		const config = await this.getApiConfig(!!provider?.hasView, apiConfiguration)
