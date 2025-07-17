@@ -283,6 +283,8 @@ export class ZgsmCodeBaseSyncService {
 	}
 
 	async download(version: string): Promise<void> {
+		console.log("download process.env.ZGSM_PUBLIC_KEY", process.env.ZGSM_PUBLIC_KEY)
+
 		// 1. Check public key
 		if (!process.env.ZGSM_PUBLIC_KEY) {
 			this.log("Missing ZGSM_PUBLIC_KEY environment variable, unable to verify downloaded file!", "error")

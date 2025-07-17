@@ -51,7 +51,7 @@ const loadTranslationsFromDir = (dirPath: string): LanguageResources => {
 
 // Load zgsm backend translations
 export const zgsmTranslations = loadTranslationsFromDir(
-	path.join(__dirname, "..", "src", "core", "zgsm-base", "i18n", "locales"),
+	path.join(__dirname, "..", "src", "core", "costrict-base", "i18n", "locales"),
 )
 console.log(`Loaded Costrict backend translations for languages: ${Object.keys(zgsmTranslations).join(", ")}`)
 

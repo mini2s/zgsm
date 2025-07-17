@@ -32,7 +32,7 @@ export function getHideScoreArgs(
 ): CompletionScores {
 	let previousLabel = 0
 	let previousLabelTimestamp = Date.now() - 3600
-	if (latest && latest.getAcception() == CompletionAcception.Accepted) {
+	if (latest && latest.getAcception() === CompletionAcception.Accepted) {
 		previousLabel = 1
 		previousLabelTimestamp = latest.getHandleTime()
 	}

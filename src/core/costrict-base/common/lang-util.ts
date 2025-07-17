@@ -8,7 +8,6 @@
  */
 import * as path from "path"
 import * as vscode from "vscode"
-import { getLanguageExtensions } from "./api"
 import { CODELENS_CONST, COMPLETION_CONST } from "./constant"
 
 /**
@@ -21,16 +20,6 @@ export interface LanguageExtension {
 }
 
 export let languageExtensions: LanguageExtension[]
-
-/**
- * Load language extension data from the server
- */
-export async function loadRemoteLanguageExtensions() {
-	const response = await getLanguageExtensions()
-	if (response && response?.data.length > 0) {
-		languageExtensions = response?.data
-	}
-}
 
 /**
  * Load local language extensions, defined in a JSON file

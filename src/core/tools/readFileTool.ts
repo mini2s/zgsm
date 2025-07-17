@@ -13,7 +13,7 @@ import { countFileLines } from "../../integrations/misc/line-counter"
 import { readLines } from "../../integrations/misc/read-lines"
 import { extractTextFromFile, addLineNumbers } from "../../integrations/misc/extract-text"
 import { parseSourceCodeDefinitionsForFile } from "../../services/tree-sitter"
-import { truncateContent } from "../zgsm-base/common/util"
+import { truncateContent } from "../costrict-base/common/util"
 
 export async function readFileTool(
 	cline: Task,

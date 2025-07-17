@@ -8,173 +8,20 @@
  * copies or substantial portions of the Software.
  */
 import * as vscode from "vscode"
-import { getExtensionsLatestVersion } from "./api"
+// import { getExtensionsLatestVersion } from "./api"
 import { configCompletion, configCodeLens, ZGSM_API_KEY, ZGSM_BASE_URL } from "./constant"
-import { envSetting } from "./env"
+// import { envSetting } from "./env"
 import { Logger } from "./log-util"
 import { LangSetting, LangSwitch, LangDisables, getLanguageByFilePath } from "./lang-util"
-import { DateFormat, formatTime, formatTimeDifference } from "./util"
+// import { DateFormat, formatTime, formatTimeDifference } from "./util"
 import { t } from "../../../i18n"
 
-import { ApiConfiguration, zgsmProviderKey } from "../../../shared/api"
+import { ApiConfiguration } from "../../../shared/api"
 import { CompletionClient } from "../completion/CompletionClient"
 // import { generateZgsmAuthUrl } from "../../../shared/zgsmAuthUrl"
 import { checkExistKey } from "../../../shared/checkExistApiConfig"
-import { Package } from "../../../schemas"
 import { handleZgsmLogin } from "../../../zgsmAuth/zgsmAuthHandler"
 import { ClineProvider } from "../../webview/ClineProvider"
-/**
- * Set up a timer to periodically check for extension updates and programming language settings
- */
-export function setupExtensionUpdater(context: vscode.ExtensionContext) {
-	setTimeout(() => {
-		// loadRemoteLanguageExtensions()
-		updateExtensions(context)
-	}, 3000)
-	setInterval(
-		() => {
-			// loadRemoteLanguageExtensions() // Load language extension data
-			updateExtensions(context) // Check for extension updates
-		},
-		1000 * 60 * 60,
-	)
-}
-
-const ZGSM_IGNORE_VERSION = "zgsmIgnoreVersion"
-const ZGSM_LASTTIME_CHECKED = "zgsmLastChecked"
-
-/**
- * Update the extension
- */
-async function updateExtensions(context: vscode.ExtensionContext): Promise<void> {
-	if (!isTimeToCheck(context)) {
-		return
-	}
-	// Get extension information
-	const extension = vscode.extensions.getExtension(Package.extensionId)
-	if (!extension) {
-		return
-	}
-	const extensionName = extension.packageJSON.name
-	if (extensionName !== zgsmProviderKey) {
-		return
-	}
-	const extensionVersion = extension.packageJSON.version as string
-	const zgsmLatestVersion = await getLatestVersion(extensionVersion)
-	if (isIgnoreVersion(context, zgsmLatestVersion)) {
-		return
-	}
-
-	if (zgsmLatestVersion === extensionVersion) {
-		Logger.log(`Extension ${extensionName} (${extensionVersion}) is already the latest version`)
-		return
-	}
-	Logger.log(`Extension ${extensionName} has an available update (${extensionVersion})`)
-	vscode.window
-		.showInformationMessage(
-			`Costrict plugin has a version update (${zgsmLatestVersion}), come and upgrade to experience new features,\nRestart the software is required after the update to take effect.`,
-			{ modal: false },
-			"Confirm",
-			"Ignore",
-		)
-		.then((result) => {
-			if (result === "Confirm") {
-				// User clicked the "Confirm" button
-				Logger.log(`User clicked the "Confirm" button`)
-				try {
-					vscode.commands.executeCommand("workbench.extensions.search", Package.extensionId)
-				} catch (err) {
-					Logger.error(err)
-				}
-			} else if (result === "Ignore") {
-				// User clicked the "Ignore" button
-				Logger.log(`Ignore version ${zgsmLatestVersion} update`)
-				context.globalState.update(ZGSM_IGNORE_VERSION, zgsmLatestVersion)
-			}
-		})
-}
-
-/**
- * Check if it's time to check for updates again
- */
-function isTimeToCheck(context: vscode.ExtensionContext): boolean {
-	const globalState = context.globalState
-	const zgsmLastChecked = globalState.get(ZGSM_LASTTIME_CHECKED)
-	const currentTime = Date.now()
-	if (!zgsmLastChecked) {
-		globalState.update(ZGSM_LASTTIME_CHECKED, currentTime)
-	} else {
-		const lastChecked = formatTime(new Date(zgsmLastChecked as number), DateFormat.LITE)
-		const timeDiff = currentTime - (zgsmLastChecked as number)
-		const timeDiffStr = formatTimeDifference(timeDiff)
-		const maxIntervalStr = formatTimeDifference(envSetting.updateExtensionsTimeInterval)
-		if (timeDiff > envSetting.updateExtensionsTimeInterval) {
-			Logger.info(
-				`Last check time for ${Package.extensionId} extension: ${lastChecked}, waiting time ${timeDiffStr} exceeded ${maxIntervalStr}, need to check again`,
-			)
-			// Check for updates every 12 hours
-			globalState.update(ZGSM_LASTTIME_CHECKED, currentTime)
-			return true
-		}
-		Logger.info(
-			`Last check time for ${Package.extensionId} extension: ${lastChecked}, waiting time ${timeDiffStr} is less than ${maxIntervalStr}, no need to update`,
-		)
-	}
-	return false
-}
-
-/**
- * Check if the version is ignored
- */
-function isIgnoreVersion(context: vscode.ExtensionContext, extensionVersion: string): boolean {
-	const globalState = context.globalState
-	const zgsmIgnoreVersion = globalState.get(ZGSM_IGNORE_VERSION) as string
-	if (zgsmIgnoreVersion === extensionVersion) {
-		Logger.info(
-			`${Package.extensionId} extension update ignored version ${ZGSM_IGNORE_VERSION}: ${zgsmIgnoreVersion} `,
-		)
-		return true
-	}
-	return false
-}
-
-/**
- * Get the latest version number
- */
-async function getLatestVersion(extensionVersion: string): Promise<string> {
-	const zgsmLatestVersionData = await getExtensionsLatestVersion()
-	let zgsmLatestVersion = ""
-	if (zgsmLatestVersionData) {
-		zgsmLatestVersion = zgsmLatestVersionData.version
-	} else {
-		// Avoid version being empty due to request exceptions
-		zgsmLatestVersion = extensionVersion
-	}
-	Logger.log("request success zgsmLatestVersion:", zgsmLatestVersion)
-	return zgsmLatestVersion
-}
-
-/**
- * Ensure that the Costrict extension only performs actions once
- */
-export function doExtensionOnce(context: vscode.ExtensionContext) {
-	const isFirstTime = context.globalState.get("isFirstTime")
-	if (!isFirstTime) {
-		// Record the flag when the plugin is started for the first time
-		context.globalState.update("isFirstTime", true)
-		vscode.workspace.getConfiguration(configCompletion).update("enabled", true, vscode.ConfigurationTarget.Global)
-	}
-
-	const shortCutKeySupport = context.globalState.get("shortCutKeySupport")
-	if (!shortCutKeySupport) {
-		// Show a message box for code auto-completion
-		vscode.window.showInformationMessage(
-			"Costrict (code auto-completion) now supports manual triggering, use the shortcut key ALT+A to quickly experience",
-			"Got it",
-		)
-		context.globalState.update("shortCutKeySupport", true)
-	}
-}
 
 /**
  * Update settings related to [Function Quick Menu]

@@ -75,7 +75,7 @@ export class AICompletionProvider implements InlineCompletionItemProvider, Dispo
 	): ProviderResult<InlineCompletionItem[] | InlineCompletionList> {
 		/* eslint-disable no-async-promise-executor */
 		let triggerMode = "auto"
-		if (this.extensionContext.workspaceState.get("shortCutKeys") == true) {
+		if (this.extensionContext.workspaceState.get("shortCutKeys") === true) {
 			triggerMode = "manual"
 			this.extensionContext.workspaceState.update("shortCutKeys", false)
 		}
@@ -162,7 +162,7 @@ export class AICompletionProvider implements InlineCompletionItemProvider, Dispo
 			Logger.info(`Completion: The ${docInfo.language} language does not support code completion yet.`)
 			return false
 		}
-		if (triggerMode == "auto") {
+		if (triggerMode === "auto") {
 			if (sw === LangSwitch.Disabled) {
 				Logger.info(
 					`Completion: The completion function of the current language ${docInfo.language} has been disabled.`,
@@ -225,7 +225,7 @@ export class AICompletionProvider implements InlineCompletionItemProvider, Dispo
 		}
 		// Compare the relationship between the contents of the two completion points
 		const res = this.matchCompletion(latest, cp)
-		if ((res.mode === CompletionMode.Partial || res.mode === CompletionMode.Cached) && triggerMode == "manual") {
+		if ((res.mode === CompletionMode.Partial || res.mode === CompletionMode.Cached) && triggerMode === "manual") {
 			res.mode = CompletionMode.Newest
 		}
 		return res
@@ -304,7 +304,7 @@ export class AICompletionProvider implements InlineCompletionItemProvider, Dispo
 	 * The default delay time for completion is 300ms. Completion will only be triggered after the user stays at this position for this time to avoid excessive triggering and interfering with the user's input.
 	 */
 	private calcDelayTimeval(triggerMode: string, cp: CompletionPoint): number {
-		if (triggerMode == "manual") {
+		if (triggerMode === "manual") {
 			return COMPLETION_CONST.manualTriggerDelay
 		}
 		const latest = CompletionCache.getLatest()
@@ -361,7 +361,7 @@ export class AICompletionProvider implements InlineCompletionItemProvider, Dispo
 		return CompletionClient.callApi(cp, getHideScoreArgs(document, latest, cp), latestCompletion)
 			.then((response) => {
 				latest = CompletionCache.getLatest()
-				if (latest && cp.id != latest.id) {
+				if (latest && cp.id !== latest.id) {
 					// Avoid echoing the completion content of the old request when multiple requests respond simultaneously
 					Logger.info(
 						`Completion [${cp.id}]: Ignore the completion result, the new completion [${latest.id}] is located at [${latest.getKey()}]`,
@@ -376,7 +376,7 @@ export class AICompletionProvider implements InlineCompletionItemProvider, Dispo
 				return Promise.resolve(this.toInlineCompletions(document, cp))
 			})
 			.catch((error) => {
-				if (cp.getAcception() == CompletionAcception.Canceled) {
+				if (cp.getAcception() === CompletionAcception.Canceled) {
 					Logger.info(`Completion [${cp.id}]: The request has been cancelled.`)
 				} else {
 					Logger.error(`Completion [${cp.id}]: Failed to get completion content`, error)
@@ -430,7 +430,7 @@ export class AICompletionProvider implements InlineCompletionItemProvider, Dispo
 					return
 				}
 				// If the changed text is exactly the same as the completion text, it means the user has accepted the completion
-				if (completionText.replace(/\r\n/g, "\n") == changeText.replace(/\r\n/g, "\n")) {
+				if (completionText.replace(/\r\n/g, "\n") === changeText.replace(/\r\n/g, "\n")) {
 					Logger.info(`Completion [${cur.id}]: The completion content has been accepted: ${changeText}`)
 					cur.accept()
 					CompletionCache.cache(cur)
@@ -476,7 +476,7 @@ export class AICompletionProvider implements InlineCompletionItemProvider, Dispo
 			if (
 				completionText &&
 				actualText &&
-				completionText.replace(/\r\n/g, "\n") == actualText.replace(/\r\n/g, "\n")
+				completionText.replace(/\r\n/g, "\n") === actualText.replace(/\r\n/g, "\n")
 			) {
 				Logger.info("Completion: The actual code is the same as the completion code.", actualText)
 				cp.unchanged()
@@ -484,7 +484,7 @@ export class AICompletionProvider implements InlineCompletionItemProvider, Dispo
 			}
 
 			// If the actual code is the same as the code in the original file, it means no modification has been made, and do not report the code.
-			if (originText.replace(/\r\n/g, "\n") == actualText.replace(/\r\n/g, "\n")) {
+			if (originText.replace(/\r\n/g, "\n") === actualText.replace(/\r\n/g, "\n")) {
 				Logger.info("Completion: The actual code is the same as the code in the original file.", actualText)
 				cp.reject()
 				cp.unchanged()

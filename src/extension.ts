@@ -1,7 +1,7 @@
 import * as vscode from "vscode"
 import * as dotenvx from "@dotenvx/dotenvx"
 import * as path from "path"
-import * as ZgsmCore from "./core/zgsm-base"
+import * as ZgsmCore from "./core/costrict-base"
 
 // Load environment variables from .env file
 try {
@@ -62,6 +62,8 @@ let extensionContext: vscode.ExtensionContext
 // This method is called when your extension is activated.
 // Your extension is activated the very first time the command is executed.
 export async function activate(context: vscode.ExtensionContext) {
+	console.log("process.env.ZGSM_PUBLIC_KEY", process.env.ZGSM_PUBLIC_KEY)
+
 	const hasReloaded = context.globalState.get<boolean>("hasReloadedOnUpgrade") ?? false
 	const allCommands = await vscode.commands.getCommands(true)
 

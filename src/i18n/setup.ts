@@ -1,5 +1,5 @@
 import i18next from "i18next"
-import { zgsmTranslations, mergeLanguageResources } from "../core/zgsm-base/i18n/setup"
+import { zgsmTranslations, mergeLanguageResources } from "../core/costrict-base/i18n/setup"
 import { ZGSM_LANGUAGES } from "../shared/language"
 
 // Build translations object

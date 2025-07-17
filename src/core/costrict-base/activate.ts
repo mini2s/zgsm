@@ -24,8 +24,6 @@ import {
 	configCodeLens,
 	OPENAI_CLIENT_NOT_INITIALIZED,
 	ZGSM_API_KEY,
-	setupExtensionUpdater,
-	doExtensionOnce,
 	updateCodelensConfig,
 	updateCompletionConfig,
 	initLangSetting,
@@ -66,8 +64,6 @@ function registerZGSMCodeActions(context: vscode.ExtensionContext) {
 export async function activate(context: vscode.ExtensionContext, provider: ClineProvider) {
 	await initialize(provider)
 
-	setupExtensionUpdater(context)
-	doExtensionOnce(context)
 	CompletionStatusBar.create(context)
 
 	context.subscriptions.push(
