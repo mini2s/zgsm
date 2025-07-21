@@ -1,5 +1,10 @@
 # Costrict Change Log
 
+## [1.5.8]
+- Optimization context window
+- Update docs
+- Fix known issues
+
 ## [1.5.7]
 - Project renamed to `costrict`
 - Optimized CodeReview
