@@ -82,6 +82,7 @@ import { getMessagesSinceLastSummary, summarizeConversation } from "../condense"
 import { maybeRemoveImageBlocks } from "../../api/transform/image-cleaning"
 import { t } from "../../i18n"
 import { parseJwt } from "../../utils/jwt"
+import { getShell } from "../../utils/shell"
 
 export type ClineEvents = {
 	message: [{ action: "created" | "updated"; message: ClineMessage }]
@@ -1466,6 +1467,11 @@ export class Task extends EventEmitter<ClineEvents> {
 				throw new Error("Provider not available")
 			}
 
+			const shellSuggestion =
+				process.env.NODE_ENV === "test"
+					? ""
+					: `\nThe user's current shell is \`${getShell()}\`, and all command outputs must adhere to the syntax.\n`
+
 			return SYSTEM_PROMPT(
 				provider.context,
 				this.cwd,
@@ -1476,7 +1482,7 @@ export class Task extends EventEmitter<ClineEvents> {
 				mode,
 				customModePrompts,
 				customModes,
-				customInstructions,
+				shellSuggestion + customInstructions,
 				this.diffEnabled,
 				experiments,
 				enableMcpServerCreation,

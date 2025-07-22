@@ -6,6 +6,7 @@ const SHELL_PATHS = {
 	POWERSHELL_7: "C:\\Program Files\\PowerShell\\7\\pwsh.exe",
 	POWERSHELL_LEGACY: "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
 	CMD: "C:\\Windows\\System32\\cmd.exe",
+	GITBASH: "C:\\Program Files\\Git\\bin\\bash.exe",
 	WSL_BASH: "/bin/bash",
 	// Unix paths
 	MAC_DEFAULT: "/bin/zsh",
@@ -83,6 +84,8 @@ function getLinuxTerminalConfig() {
 /** Attempts to retrieve a shell path from VS Code config on Windows. */
 function getWindowsShellFromVSCode(): string | null {
 	const { defaultProfileName, profiles } = getWindowsTerminalConfig()
+	console.log(defaultProfileName, profiles)
+
 	if (!defaultProfileName) {
 		return null
 	}
@@ -112,6 +115,10 @@ function getWindowsShellFromVSCode(): string | null {
 	// If the profile indicates WSL
 	if (profile?.source === "WSL" || defaultProfileName.toLowerCase().includes("wsl")) {
 		return SHELL_PATHS.WSL_BASH
+	}
+
+	if (defaultProfileName.toLowerCase().includes("bash")) {
+		return SHELL_PATHS.GITBASH
 	}
 
 	// If nothing special detected, we assume cmd
