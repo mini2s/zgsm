@@ -84,7 +84,6 @@ function getLinuxTerminalConfig() {
 /** Attempts to retrieve a shell path from VS Code config on Windows. */
 function getWindowsShellFromVSCode(): string | null {
 	const { defaultProfileName, profiles } = getWindowsTerminalConfig()
-	console.log(defaultProfileName, profiles)
 
 	if (!defaultProfileName) {
 		return null
