@@ -1,6 +1,6 @@
 <div align="center">
     <h1>Costrict (prev. Shenma)</h1>
-    <h2>企业严肃开发的AI智能体</h2>
+    <h2>企业严肃开发的AI智能伙伴</h2>
 </div>
 <br>
 <div align="center">
