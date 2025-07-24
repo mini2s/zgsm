@@ -36,6 +36,7 @@ export interface SingleCompletionHandler {
 export interface ApiHandlerCreateMessageMetadata {
 	mode?: string
 	taskId: string
+	[key: string]: any
 }
 
 export interface ApiHandler {

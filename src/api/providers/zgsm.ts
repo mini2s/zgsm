@@ -1,84 +1,72 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import OpenAI, { AzureOpenAI } from "openai"
-import axios, { AxiosError, AxiosRequestConfig } from "axios"
+import axios, { AxiosError } from "axios"
 
-import {
-	ApiHandlerOptions,
-	azureOpenAiDefaultApiVersion,
-	ModelInfo,
-	// openAiModelInfoSaneDefaults,
-} from "../../shared/api"
-import { SingleCompletionHandler } from "../index"
+import { azureOpenAiDefaultApiVersion, ModelInfo, type ApiHandlerOptions } from "../../shared/api"
+
+import { XmlMatcher } from "../../utils/xml-matcher"
+
 import { convertToOpenAiMessages } from "../transform/openai-format"
 import { convertToR1Format } from "../transform/r1-format"
 import { convertToSimpleMessages } from "../transform/simple-format"
 import { ApiStream, ApiStreamUsageChunk } from "../transform/stream"
+import { getModelParams } from "../transform/model-params"
+
+import { DEEP_SEEK_DEFAULT_TEMPERATURE, DEFAULT_HEADERS } from "./constants"
 import { BaseProvider } from "./base-provider"
-import { XmlMatcher } from "../../utils/xml-matcher"
-import { DEEP_SEEK_DEFAULT_TEMPERATURE } from "./constants"
-import { createHeaders } from "../../zgsmAuth/zgsmAuthHandler"
-import { defaultZgsmAuthConfig } from "../../zgsmAuth/config"
-import { getWorkspacePath } from "../../utils/path"
+import type { SingleCompletionHandler, ApiHandlerCreateMessageMetadata } from "../index"
 import { getZgsmSelectedModelInfo } from "../../shared/getZgsmSelectedModelInfo"
 import { getClientId } from "../../utils/getClientId"
-
-export const defaultHeaders = {
-	"HTTP-Referer": "https://github.com/zgsm-ai/costrict",
-	"X-Title": "Costrict",
-}
-
-export interface OpenAiHandlerOptions extends ApiHandlerOptions {}
+import { getWorkspacePath } from "../../utils/path"
+import { defaultZgsmAuthConfig } from "../../zgsmAuth/config"
 let modelsCache = new WeakRef<string[]>([])
 let defaultModelCache: string | undefined = "deepseek-v3"
-const AZURE_AI_INFERENCE_PATH = "/models/chat/completions"
+const OPENAI_AZURE_AI_INFERENCE_PATH = "/models/chat/completions"
 
 export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler {
-	protected options: OpenAiHandlerOptions
+	protected options: ApiHandlerOptions
 	private client: OpenAI
-	private taskId = ""
+	private baseURL: string
 	private chatType?: "user" | "system"
+	private headers = {}
 
-	constructor(options: OpenAiHandlerOptions) {
+	constructor(options: ApiHandlerOptions) {
 		super()
 		this.options = options
 
-		const baseURL = `${this.options.zgsmBaseUrl || this.options.zgsmDefaultBaseUrl}/chat-rag/api/v1`
-		const apiKey = this.options.zgsmApiKey || "not-provided"
+		this.baseURL = `${this.options.zgsmBaseUrl || this.options.zgsmDefaultBaseUrl}/chat-rag/api/v1`
+		const apiKey = options.zgsmApiKey ?? "not-provided"
 		const isAzureAiInference = this._isAzureAiInference(this.options.zgsmBaseUrl || this.options.zgsmDefaultBaseUrl)
 		const urlHost = this._getUrlHost(this.options.zgsmBaseUrl || this.options.zgsmDefaultBaseUrl)
 		const isAzureOpenAi = urlHost === "azure.com" || urlHost.endsWith(".azure.com") || options.openAiUseAzure
 
+		this.headers = {
+			...DEFAULT_HEADERS,
+			...(this.options.openAiHeaders || {}),
+		}
+
 		if (isAzureAiInference) {
 			// Azure AI Inference Service (e.g., for DeepSeek) uses a different path structure
 			this.client = new OpenAI({
-				baseURL,
+				baseURL: this.baseURL,
 				apiKey,
-				defaultHeaders,
-				timeout: 120000,
+				defaultHeaders: this.headers,
 				defaultQuery: { "api-version": this.options.azureApiVersion || "2024-05-01-preview" },
 			})
 		} else if (isAzureOpenAi) {
 			// Azure API shape slightly differs from the core API shape:
 			// https://github.com/openai/openai-node?tab=readme-ov-file#microsoft-azure-openai
 			this.client = new AzureOpenAI({
-				baseURL,
+				baseURL: this.baseURL,
 				apiKey,
 				apiVersion: this.options.azureApiVersion || azureOpenAiDefaultApiVersion,
-				timeout: 120000,
-				defaultHeaders: {
-					...defaultHeaders,
-					...(this.options.openAiHostHeader ? { Host: this.options.openAiHostHeader } : {}),
-				},
+				defaultHeaders: this.headers,
 			})
 		} else {
 			this.client = new OpenAI({
-				baseURL,
+				baseURL: this.baseURL,
 				apiKey,
-				timeout: 120000,
-				defaultHeaders: {
-					...defaultHeaders,
-					...(this.options.openAiHostHeader ? { Host: this.options.openAiHostHeader } : {}),
-				},
+				defaultHeaders: this.headers,
 			})
 		}
 	}
@@ -86,18 +74,28 @@ export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler
 	override async *createMessage(
 		systemPrompt: string,
 		messages: Anthropic.Messages.MessageParam[],
-		opt: any,
+		metadata?: ApiHandlerCreateMessageMetadata,
 	): ApiStream {
-		const modelInfo = this.getModel().info
+		const { info: modelInfo, reasoning } = this.getModel()
 		const modelUrl = `${this.options.zgsmBaseUrl || this.options.zgsmDefaultBaseUrl}/chat-rag/api/v1`
 		const modelId = `${this.options.zgsmModelId || this.options.zgsmDefaultModelId || defaultModelCache}`
 		const enabledR1Format = this.options.openAiR1FormatEnabled ?? false
 		const enabledLegacyFormat = this.options.openAiLegacyFormat ?? false
 		const isAzureAiInference = this._isAzureAiInference(modelUrl)
-		// const urlHost = this._getUrlHost(modelUrl)
 		const deepseekReasoner = modelId.includes("deepseek-reasoner") || enabledR1Format
 		const ark = modelUrl.includes(".volces.com")
-		if (modelId.startsWith("o3-mini")) {
+
+		const _headers = {
+			...this.headers,
+			"Accept-Language": metadata?.language || "en",
+			"x-quota-identity": this.chatType || "system",
+			"zgsm-task-id": metadata?.taskId,
+			"zgsm-request-id": `${metadata?.instanceId}-${Date.now().toString()}`,
+			"zgsm-client-id": getClientId(),
+			"zgsm-project-path": encodeURI(getWorkspacePath()),
+		}
+
+		if (modelId.includes("o1") || modelId.includes("o3") || modelId.includes("o4")) {
 			yield* this.handleO3FamilyMessage(modelId, systemPrompt, messages)
 			return
 		}
@@ -145,6 +143,7 @@ export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler
 								lastTextPart = { type: "text", text: "..." }
 								msg.content.push(lastTextPart)
 							}
+
 							// @ts-ignore-next-line
 							lastTextPart["cache_control"] = { type: "ephemeral" }
 						}
@@ -152,28 +151,24 @@ export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler
 				}
 			}
 
+			const isGrokXAI = this._isGrokXAI(this.baseURL)
+
 			const requestOptions: OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming = {
 				model: modelId,
 				temperature: this.options.modelTemperature ?? (deepseekReasoner ? DEEP_SEEK_DEFAULT_TEMPERATURE : 0),
 				messages: convertedMessages,
 				stream: true as const,
-				stream_options: { include_usage: true },
+				...(isGrokXAI ? {} : { stream_options: { include_usage: true } }),
+				...(reasoning && reasoning),
 			}
-			if (this.options.includeMaxTokens) {
-				requestOptions.max_tokens = modelInfo.maxTokens
-			}
+
+			// Add max_tokens if needed
+			this.addMaxTokensIfNeeded(requestOptions, modelInfo)
 
 			const stream = await this.client.chat.completions.create(
 				requestOptions,
-				Object.assign(isAzureAiInference ? { path: AZURE_AI_INFERENCE_PATH } : {}, {
-					headers: {
-						...defaultHeaders,
-						"Accept-Language": opt?.language || "en",
-						"x-quota-identity": this.chatType,
-						"zgsm-task-id": this.taskId,
-						"zgsm-client-id": getClientId(),
-						"zgsm-project-path": encodeURI(getWorkspacePath()),
-					},
+				Object.assign(isAzureAiInference ? { path: OPENAI_AZURE_AI_INFERENCE_PATH } : {}, {
+					headers: _headers,
 				}),
 			)
 
@@ -207,6 +202,7 @@ export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler
 					lastUsage = chunk.usage
 				}
 			}
+
 			for (const chunk of matcher.final()) {
 				yield chunk
 			}
@@ -230,15 +226,21 @@ export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler
 						: [systemMessage, ...convertToOpenAiMessages(messages)],
 			}
 
+			// Add max_tokens if needed
+			this.addMaxTokensIfNeeded(requestOptions, modelInfo)
+
 			const response = await this.client.chat.completions.create(
 				requestOptions,
-				this._isAzureAiInference(modelUrl) ? { path: AZURE_AI_INFERENCE_PATH } : {},
+				Object.assign(this._isAzureAiInference(modelUrl) ? { path: OPENAI_AZURE_AI_INFERENCE_PATH } : {}, {
+					headers: _headers,
+				}),
 			)
 
 			yield {
 				type: "text",
 				text: response.choices[0]?.message.content || "",
 			}
+
 			yield this.processUsageMetrics(response.usage, modelInfo)
 		}
 	}
@@ -253,34 +255,41 @@ export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler
 		}
 	}
 
-	override getModel(): { id: string; info: ModelInfo } {
+	override getModel() {
 		const id = `${this.options.zgsmModelId || this.options.zgsmDefaultModelId || defaultModelCache}`
-
-		return {
-			id,
-			info: this.options.openAiCustomModelInfo || getZgsmSelectedModelInfo(id),
-		}
+		const defaultInfo = getZgsmSelectedModelInfo(id)
+		const info = this.options.useZgsmCustomConfig
+			? (this.options.openAiCustomModelInfo ?? defaultInfo)
+			: defaultInfo
+		const params = getModelParams({ format: "zgsm", modelId: id, model: info, settings: this.options })
+		return { id, info, ...params }
 	}
 
 	async completePrompt(prompt: string): Promise<string> {
 		try {
-			const isAzureAiInference = this._isAzureAiInference(
-				this.options.zgsmBaseUrl || this.options.zgsmDefaultBaseUrl,
-			)
+			const isAzureAiInference = this._isAzureAiInference(this.baseURL)
+			const model = this.getModel()
+			const modelInfo = model.info
+
 			const requestOptions: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming = {
-				model: this.getModel().id,
+				model: model.id,
 				messages: [{ role: "user", content: prompt }],
 			}
 
+			// Add max_tokens if needed
+			this.addMaxTokensIfNeeded(requestOptions, modelInfo)
+
 			const response = await this.client.chat.completions.create(
 				requestOptions,
-				isAzureAiInference ? { path: AZURE_AI_INFERENCE_PATH } : {},
+				isAzureAiInference ? { path: OPENAI_AZURE_AI_INFERENCE_PATH } : {},
 			)
+
 			return response.choices[0]?.message.content || ""
 		} catch (error) {
 			if (error instanceof Error) {
 				throw new Error(`OpenAI completion error: ${error.message}`)
 			}
+
 			throw error
 		}
 	}
@@ -290,26 +299,35 @@ export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler
 		systemPrompt: string,
 		messages: Anthropic.Messages.MessageParam[],
 	): ApiStream {
+		const modelInfo = this.getModel().info
+		const methodIsAzureAiInference = this._isAzureAiInference(this.baseURL)
+
 		if (this.options.openAiStreamingEnabled ?? true) {
-			const methodIsAzureAiInference = this._isAzureAiInference(
-				this.options.zgsmBaseUrl || this.options.zgsmDefaultBaseUrl,
-			)
+			const isGrokXAI = this._isGrokXAI(this.baseURL)
+
+			const requestOptions: OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming = {
+				model: modelId,
+				messages: [
+					{
+						role: "developer",
+						content: `Formatting re-enabled\n${systemPrompt}`,
+					},
+					...convertToOpenAiMessages(messages),
+				],
+				stream: true,
+				...(isGrokXAI ? {} : { stream_options: { include_usage: true } }),
+				reasoning_effort: modelInfo.reasoningEffort,
+				temperature: undefined,
+			}
+
+			// O3 family models do not support the deprecated max_tokens parameter
+			// but they do support max_completion_tokens (the modern OpenAI parameter)
+			// This allows O3 models to limit response length when includeMaxTokens is enabled
+			this.addMaxTokensIfNeeded(requestOptions, modelInfo)
 
 			const stream = await this.client.chat.completions.create(
-				{
-					model: modelId,
-					messages: [
-						{
-							role: "developer",
-							content: `Formatting re-enabled\n${systemPrompt}`,
-						},
-						...convertToOpenAiMessages(messages),
-					],
-					stream: true,
-					stream_options: { include_usage: true },
-					reasoning_effort: this.getModel().info.reasoningEffort,
-				},
-				methodIsAzureAiInference ? { path: AZURE_AI_INFERENCE_PATH } : {},
+				requestOptions,
+				methodIsAzureAiInference ? { path: OPENAI_AZURE_AI_INFERENCE_PATH } : {},
 			)
 
 			yield* this.handleStreamResponse(stream)
@@ -323,15 +341,18 @@ export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler
 					},
 					...convertToOpenAiMessages(messages),
 				],
+				reasoning_effort: modelInfo.reasoningEffort,
+				temperature: undefined,
 			}
 
-			const methodIsAzureAiInference = this._isAzureAiInference(
-				this.options.zgsmBaseUrl || this.options.zgsmDefaultBaseUrl,
-			)
+			// O3 family models do not support the deprecated max_tokens parameter
+			// but they do support max_completion_tokens (the modern OpenAI parameter)
+			// This allows O3 models to limit response length when includeMaxTokens is enabled
+			this.addMaxTokensIfNeeded(requestOptions, modelInfo)
 
 			const response = await this.client.chat.completions.create(
 				requestOptions,
-				methodIsAzureAiInference ? { path: AZURE_AI_INFERENCE_PATH } : {},
+				methodIsAzureAiInference ? { path: OPENAI_AZURE_AI_INFERENCE_PATH } : {},
 			)
 
 			yield {
@@ -369,13 +390,33 @@ export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler
 		}
 	}
 
+	private _isGrokXAI(baseUrl?: string): boolean {
+		const urlHost = this._getUrlHost(baseUrl)
+		return urlHost.includes("x.ai")
+	}
+
 	private _isAzureAiInference(baseUrl?: string): boolean {
 		const urlHost = this._getUrlHost(baseUrl)
 		return urlHost.endsWith(".services.ai.azure.com")
 	}
 
-	setTaskId(taskId: string): void {
-		this.taskId = taskId
+	/**
+	 * Adds max_completion_tokens to the request body if needed based on provider configuration
+	 * Note: max_tokens is deprecated in favor of max_completion_tokens as per OpenAI documentation
+	 * O3 family models handle max_tokens separately in handleO3FamilyMessage
+	 */
+	private addMaxTokensIfNeeded(
+		requestOptions:
+			| OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming
+			| OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming,
+		modelInfo: ModelInfo,
+	): void {
+		// Only add max_completion_tokens if includeMaxTokens is true
+		if (this.options.includeMaxTokens === true) {
+			// Use user-configured modelMaxTokens if available, otherwise fall back to model's default maxTokens
+			// Using max_completion_tokens as max_tokens is deprecated
+			requestOptions.max_completion_tokens = this.options.modelMaxTokens || modelInfo.maxTokens
+		}
 	}
 
 	setChatType(type: "user" | "system"): void {
@@ -400,11 +441,10 @@ export const canParseURL = (url: string): boolean => {
 		return false
 	}
 }
-
 export async function getZgsmModels(
 	baseUrl?: string,
 	apiKey?: string,
-	hostHeader?: string,
+	openAiHeaders?: Record<string, string>,
 ): Promise<[string[], string | undefined, (AxiosError | undefined)?]> {
 	baseUrl = baseUrl || defaultZgsmAuthConfig.baseUrl
 	const modelsUrl = `${baseUrl}/ai-gateway/api/v1/models`
@@ -413,15 +453,14 @@ export async function getZgsmModels(
 			throw new Error(`Invalid Costrict base URL: ${baseUrl}`)
 		}
 
-		const config: AxiosRequestConfig = {}
-		const headers: Record<string, string> = createHeaders({})
+		const config: Record<string, any> = {}
+		const headers: Record<string, string> = {
+			...DEFAULT_HEADERS,
+			...(openAiHeaders || {}),
+		}
 
 		if (apiKey) {
 			headers["Authorization"] = `Bearer ${apiKey}`
-		}
-
-		if (hostHeader) {
-			headers["Host"] = hostHeader
 		}
 
 		if (Object.keys(headers).length > 0) {

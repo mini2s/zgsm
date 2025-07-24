@@ -13,7 +13,7 @@ import { TokenUsage, ToolUsage, ToolName, ContextCondense } from "../../schemas"
 import { isLanguage } from "../../schemas"
 
 // api
-import { ApiHandler, buildApiHandler } from "../../api"
+import { ApiHandler, ApiHandlerCreateMessageMetadata, buildApiHandler } from "../../api"
 import { ApiStream } from "../../api/transform/stream"
 
 // shared
@@ -1494,6 +1494,7 @@ export class Task extends EventEmitter<ClineEvents> {
 
 	public async *attemptApiRequest(retryAttempt: number = 0): ApiStream {
 		const {
+			mode,
 			apiConfiguration,
 			autoApprovalEnabled,
 			alwaysApproveResubmit,
@@ -1590,9 +1591,13 @@ export class Task extends EventEmitter<ClineEvents> {
 				this.consecutiveAutoApprovedRequestsCount = 0
 			}
 		}
-
-		this.api?.setTaskId?.(this.taskId)
-		const stream = this.api.createMessage(systemPrompt, cleanConversationHistory, { language })
+		const metadata: ApiHandlerCreateMessageMetadata = {
+			mode: mode,
+			taskId: this.taskId,
+			language,
+			instanceId: this.instanceId,
+		}
+		const stream = this.api.createMessage(systemPrompt, cleanConversationHistory, metadata)
 		const iterator = stream[Symbol.asyncIterator]()
 
 		try {
