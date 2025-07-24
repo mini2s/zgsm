@@ -1,5 +1,12 @@
 # Costrict Change Log
 
+## [1.5.9]
+- Add Telemetry
+- Add AutoCommit
+- Optimized shell integration
+- Update models config (Grok and o4)
+- Fix known issues
+
 ## [1.5.8]
 - Optimization context window
 - Update docs
