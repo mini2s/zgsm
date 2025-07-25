@@ -1,5 +1,9 @@
 # Costrict Change Log
 
+## [1.5.10]
+- Remove deprecated api
+- Fix known issues
+
 ## [1.5.9]
 - Add Telemetry
 - Add AutoCommit
