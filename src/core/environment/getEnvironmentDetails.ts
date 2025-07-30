@@ -223,7 +223,7 @@ export async function getEnvironmentDetails(cline: Task, includeFileDetails: boo
 		globalCustomInstructions: shellSuggestion + globalCustomInstructions,
 		language: language ?? formatLanguage(await defaultLang()),
 	})
-	details += `\n\n# Operating System\n ${osName()}`
+	details += `\n\n# Operating System\n${osName()}`
 	details += `\n\n# Default Shell\n${getShell()}`
 	details += `\n\n# Current Mode\n`
 	details += `<slug>${currentMode}</slug>\n`

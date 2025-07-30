@@ -1,5 +1,9 @@
 # Costrict Change Log
 
+## [1.5.11]
+- Update docs
+- Update error message
+
 ## [1.5.10]
 - Remove deprecated api
 - Fix known issues
