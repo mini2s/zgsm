@@ -58,7 +58,7 @@ export const useSelectedModel = (apiConfiguration?: ProviderSettings) => {
 					openRouterModelProviders: openRouterModelProviders.data as Record<string, ModelInfo>,
 				})
 			: {
-					id: apiConfiguration?.zgsmModelId || apiConfiguration?.zgsmDefaultModelId || "deepseek-v3",
+					id: apiConfiguration?.zgsmModelId || apiConfiguration?.zgsmDefaultModelId || "glm45-fp8",
 					info: undefined,
 				}
 

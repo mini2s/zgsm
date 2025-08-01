@@ -20,7 +20,7 @@ import { getClientId } from "../../utils/getClientId"
 import { getWorkspacePath } from "../../utils/path"
 import { defaultZgsmAuthConfig } from "../../zgsmAuth/config"
 let modelsCache = new WeakRef<string[]>([])
-let defaultModelCache: string | undefined = "deepseek-v3"
+let defaultModelCache: string | undefined = "glm45-fp8"
 const OPENAI_AZURE_AI_INFERENCE_PATH = "/models/chat/completions"
 
 export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler {

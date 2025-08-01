@@ -23,9 +23,9 @@ export async function run() {
 		apiProvider: "zgsm" as const,
 		zgsmBaseUrl: "https://zgsm.sangfor.com",
 		zgsmApiKey: process.env.OPENROUTER_API_KEY!, // Replaced with "zgsm" but key is still used
-		zgsmModelId: "deepseek-v3",
+		zgsmModelId: "glm45-fp8",
 		zgsmDefaultBaseUrl: "https://zgsm.sangfor.com",
-		zgsmDefaultModelId: "deepseek-v3",
+		zgsmDefaultModelId: "glm45-fp8",
 		zgsmSite: "https://costrict.ai",
 		zgsmLoginUrl: "/realms/gw/protocol/openid-connect/auth",
 		zgsmLogoutUrl: "/realms/gw/protocol/openid-connect/logout",
