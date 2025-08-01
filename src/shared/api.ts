@@ -1851,6 +1851,16 @@ export const allModels: Record<string, any> = {
 	"anthropic/claude-3-7-sonnet": glamaDefaultModelInfo,
 	"anthropic/claude-3-7-sonnet-latest": requestyDefaultModelInfo,
 	"anthropic/claude-3-5-sonnet-20241022": unboundDefaultModelInfo,
+	"glm45-fp8": {
+		maxTokens: 32768,
+		contextWindow: 131072,
+		supportsImages: false,
+		supportsPromptCache: false,
+		inputPrice: 0,
+		outputPrice: 0,
+		description:
+			"GLM-4.5-FP8 model with 128k token context window, optimized for agent-based applications with MoE architecture.",
+	},
 	"qwen25-vl-32b": {
 		maxTokens: 32768,
 		contextWindow: 64_000,

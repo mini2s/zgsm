@@ -34,10 +34,10 @@ export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler
 		super()
 		this.options = options
 
-		this.baseURL = `${this.options.zgsmBaseUrl || this.options.zgsmDefaultBaseUrl}/chat-rag/api/v1`
+		this.baseURL = `${this.options.zgsmBaseUrl || this.options.zgsmDefaultBaseUrl || defaultZgsmAuthConfig.baseUrl}/chat-rag/api/v1`
 		const apiKey = options.zgsmApiKey ?? "not-provided"
-		const isAzureAiInference = this._isAzureAiInference(this.options.zgsmBaseUrl || this.options.zgsmDefaultBaseUrl)
-		const urlHost = this._getUrlHost(this.options.zgsmBaseUrl || this.options.zgsmDefaultBaseUrl)
+		const isAzureAiInference = this._isAzureAiInference(this.baseURL)
+		const urlHost = this._getUrlHost(this.baseURL)
 		const isAzureOpenAi = urlHost === "azure.com" || urlHost.endsWith(".azure.com") || options.openAiUseAzure
 
 		this.headers = {
@@ -446,11 +446,11 @@ export async function getZgsmModels(
 	apiKey?: string,
 	openAiHeaders?: Record<string, string>,
 ): Promise<[string[], string | undefined, (AxiosError | undefined)?]> {
-	baseUrl = baseUrl || defaultZgsmAuthConfig.baseUrl
+	baseUrl = baseUrl ? baseUrl.trim() || defaultZgsmAuthConfig.baseUrl : defaultZgsmAuthConfig.baseUrl
 	const modelsUrl = `${baseUrl}/ai-gateway/api/v1/models`
 	try {
-		if (!canParseURL(baseUrl)) {
-			throw new Error(`Invalid Costrict base URL: ${baseUrl}`)
+		if (!canParseURL(modelsUrl)) {
+			throw new Error(`Invalid Costrict base URL: ${modelsUrl}`)
 		}
 
 		const config: Record<string, any> = {}
