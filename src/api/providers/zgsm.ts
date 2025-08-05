@@ -27,20 +27,16 @@ const OPENAI_AZURE_AI_INFERENCE_PATH = "/models/chat/completions"
 const cpuCount = os.cpus().length || 4
 const BUFFER_THRESHOLD = ((cpuCount) => {
 	let limit = 0
-	let time = 0
+	let time = 16
 
 	if (cpuCount <= 4) {
-		limit = 10
-		time = 20
+		limit = 25
 	} else if (cpuCount <= 8) {
-		limit = 8
-		time = 15
+		limit = 50
 	} else if (cpuCount <= 16) {
-		limit = 6
-		time = 10
+		limit = 100
 	} else {
-		limit = 4
-		time = 5
+		limit = 200
 	}
 
 	return { limit, time }
@@ -350,8 +346,7 @@ export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler
 
 		// Use content buffer to reduce matcher.update() calls
 		const contentBuffer: string[] = []
-		// const BUFFER_THRESHOLD = 10 // Process every 5 content chunks
-
+		let time = Date.now() + 2000
 		for await (const chunk of stream) {
 			await delay(ZgsmHandler.BUFFER_THRESHOLD.time)
 			const delta = chunk.choices[0]?.delta ?? {}
@@ -361,12 +356,13 @@ export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler
 				contentBuffer.push(delta.content)
 
 				// Process in batch when threshold is reached
-				if (contentBuffer.length >= ZgsmHandler.BUFFER_THRESHOLD.limit) {
+				if (contentBuffer.length >= ZgsmHandler.BUFFER_THRESHOLD.limit || Date.now() >= time) {
 					const batchedContent = contentBuffer.join("")
 					for (const processedChunk of matcher.update(batchedContent)) {
 						yield processedChunk
 					}
 					contentBuffer.length = 0 // Clear buffer
+					time = Date.now() + 2000
 				}
 			}
 
