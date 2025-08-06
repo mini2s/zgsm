@@ -1704,7 +1704,7 @@ export class Task extends EventEmitter<ClineEvents> {
 		instanceId: string,
 		apiConfiguration: ProviderSettings,
 	) {
-		const isHtml = error?.headers && error.headers["content-type"].includes("text/")
+		const isHtml = error?.headers && error.headers["content-type"]?.includes?.("text/")
 		let rawError = error.error?.metadata?.raw ? JSON.stringify(error.error.metadata.raw, null, 2) : error.message
 		let status = error.status
 		const unknownError = { status: t("apiErrors:status.unknown"), solution: t("apiErrors:solution.unknown") }

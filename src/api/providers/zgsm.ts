@@ -1,4 +1,3 @@
-import * as os from "os"
 import { Anthropic } from "@anthropic-ai/sdk"
 import OpenAI, { AzureOpenAI } from "openai"
 import axios, { AxiosError } from "axios"
@@ -20,29 +19,10 @@ import { getZgsmSelectedModelInfo } from "../../shared/getZgsmSelectedModelInfo"
 import { getClientId } from "../../utils/getClientId"
 import { getWorkspacePath } from "../../utils/path"
 import { defaultZgsmAuthConfig } from "../../zgsmAuth/config"
-import delay from "delay"
 let modelsCache = new WeakRef<string[]>([])
 let defaultModelCache: string | undefined = "glm45-fp8"
 const OPENAI_AZURE_AI_INFERENCE_PATH = "/models/chat/completions"
-const cpuCount = os.cpus().length || 4
-const BUFFER_THRESHOLD = ((cpuCount) => {
-	let limit = 0
-	let time = 16
-
-	if (cpuCount <= 4) {
-		limit = 25
-	} else if (cpuCount <= 8) {
-		limit = 50
-	} else if (cpuCount <= 16) {
-		limit = 100
-	} else {
-		limit = 200
-	}
-
-	return { limit, time }
-})(cpuCount)
 export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler {
-	static BUFFER_THRESHOLD = BUFFER_THRESHOLD
 	protected options: ApiHandlerOptions
 	private client: OpenAI
 	private baseURL: string
@@ -346,9 +326,8 @@ export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler
 
 		// Use content buffer to reduce matcher.update() calls
 		const contentBuffer: string[] = []
-		let time = Date.now() + 2000
+		let time = Date.now() + 50
 		for await (const chunk of stream) {
-			await delay(ZgsmHandler.BUFFER_THRESHOLD.time)
 			const delta = chunk.choices[0]?.delta ?? {}
 
 			// Cache content for batch processing
@@ -356,13 +335,13 @@ export class ZgsmHandler extends BaseProvider implements SingleCompletionHandler
 				contentBuffer.push(delta.content)
 
 				// Process in batch when threshold is reached
-				if (contentBuffer.length >= ZgsmHandler.BUFFER_THRESHOLD.limit || Date.now() >= time) {
+				if (contentBuffer.length >= 3 && Date.now() >= time) {
 					const batchedContent = contentBuffer.join("")
 					for (const processedChunk of matcher.update(batchedContent)) {
 						yield processedChunk
 					}
 					contentBuffer.length = 0 // Clear buffer
-					time = Date.now() + 2000
+					time = Date.now() + 50
 				}
 			}
 
