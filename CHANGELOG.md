@@ -1,5 +1,11 @@
 # Costrict Change Log
 
+## [1.5.12]
+- Update default modelID
+- Fix CodeReview path causing service exception
+- Add new commands for context
+- Fix known issues
+
 ## [1.5.11]
 - Update docs
 - Update error message
