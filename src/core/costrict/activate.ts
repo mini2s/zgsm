@@ -38,8 +38,14 @@ import { writeCostrictAccessToken } from "./codebase-index/utils"
 import { getPanel } from "../../activate/registerCommands"
 import { t } from "../../i18n"
 import prettyBytes from "pretty-bytes"
+import { createCoworkflowModule } from "./workflow"
 
 const HISTORY_WARN_SIZE = 1000 * 1000 * 1000 * 3
+
+/**
+ * Coworkflow module instance
+ */
+let coworkflowModule: ReturnType<typeof createCoworkflowModule> | null = null
 
 /**
  * Initialization entry
@@ -170,6 +176,57 @@ export async function activate(
 			// Function Quick Commands settings changed
 			updateCodelensConfig()
 		}
+
+		// Handle Coworkflow configuration changes
+		const coworkflowConfigSection = `${Package.name}.coworkflow`
+		if (
+			e.affectsConfiguration(`${coworkflowConfigSection}.enableCodeLens`) ||
+			e.affectsConfiguration(`${coworkflowConfigSection}.enableDecorations`) ||
+			e.affectsConfiguration(`${coworkflowConfigSection}.enableFileWatcher`)
+		) {
+			outputChannel.appendLine("Coworkflow configuration changed, reinitializing module...")
+
+			// Dispose existing module
+			if (coworkflowModule) {
+				coworkflowModule.dispose()
+				coworkflowModule = null
+			}
+
+			// Reinitialize with new configuration
+			;(async () => {
+				try {
+					const config = vscode.workspace.getConfiguration(Package.name)
+					const enableCodeLens = config.get<boolean>("coworkflow.enableCodeLens", true)
+					const enableDecorations = config.get<boolean>("coworkflow.enableDecorations", true)
+					const enableFileWatcher = config.get<boolean>("coworkflow.enableFileWatcher", true)
+
+					coworkflowModule = createCoworkflowModule({
+						enableCodeLens,
+						enableDecorations,
+						enableFileWatcher,
+					})
+
+					await coworkflowModule.initialize()
+
+					// Re-register disposables
+					context.subscriptions.push({
+						dispose: () => {
+							if (coworkflowModule) {
+								coworkflowModule.dispose()
+								coworkflowModule = null
+							}
+						},
+					})
+
+					outputChannel.appendLine("Coworkflow module reinitialized successfully with new configuration")
+				} catch (error) {
+					outputChannel.appendLine(
+						`Failed to reinitialize Coworkflow module: ${error instanceof Error ? error.message : String(error)}`,
+					)
+				}
+			})()
+		}
+
 		CompletionStatusBar.initByConfig()
 	})
 	context.subscriptions.push(configChanged)
@@ -208,6 +265,71 @@ export async function activate(
 				})
 		}
 	})
+
+	// Initialize Coworkflow module
+	try {
+		const coworkflowConfig = vscode.workspace.getConfiguration(Package.name)
+		const enableCodeLens = coworkflowConfig.get<boolean>("coworkflow.enableCodeLens", true)
+		const enableDecorations = coworkflowConfig.get<boolean>("coworkflow.enableDecorations", true)
+		const enableFileWatcher = coworkflowConfig.get<boolean>("coworkflow.enableFileWatcher", true)
+
+		coworkflowModule = createCoworkflowModule({
+			enableCodeLens,
+			enableDecorations,
+			enableFileWatcher,
+		})
+
+		await coworkflowModule.initialize()
+		context.subscriptions.push({
+			dispose: () => {
+				if (coworkflowModule) {
+					coworkflowModule.dispose()
+					coworkflowModule = null
+				}
+			},
+		})
+
+		outputChannel.appendLine("Coworkflow module initialized successfully")
+
+		// Set up event system integration for Coworkflow
+		if (coworkflowModule) {
+			const fileWatcher = coworkflowModule.getProviders().fileWatcher
+			const decorationProvider = coworkflowModule.getProviders().decorationProvider
+
+			// Listen to file changes from CoworkflowFileWatcher
+			fileWatcher.onFileChanged((uri) => {
+				// Update decorations when files change
+				const activeEditor = vscode.window.activeTextEditor
+				if (activeEditor && activeEditor.document.uri === uri) {
+					decorationProvider.updateDecorations(activeEditor.document)
+				}
+
+				// Log file change event
+				outputChannel.appendLine(`Coworkflow file changed: ${uri.fsPath}`)
+			})
+
+			// Register command to handle file change events
+			const fileChangedDisposable = vscode.commands.registerCommand("coworkflow.fileChanged", (event) => {
+				outputChannel.appendLine(`Coworkflow file changed event: ${event.uri.fsPath} (${event.eventType})`)
+
+				// Trigger CodeLens refresh
+				vscode.commands.executeCommand("workbench.action.codeLens.refresh")
+
+				// Update decorations if the changed file is currently active
+				const activeEditor = vscode.window.activeTextEditor
+				if (activeEditor && activeEditor.document.uri.fsPath === event.uri.fsPath) {
+					decorationProvider.updateDecorations(activeEditor.document)
+				}
+			})
+
+			context.subscriptions.push(fileChangedDisposable)
+		}
+	} catch (error) {
+		outputChannel.appendLine(
+			`Failed to initialize Coworkflow module: ${error instanceof Error ? error.message : String(error)}`,
+		)
+	}
+
 	setTimeout(() => {
 		loginTip()
 	}, 2000)
@@ -226,6 +348,12 @@ export async function deactivate() {
 	stopIPCServer()
 	// Clean up workspace event monitoring
 	workspaceEventMonitor.handleVSCodeClose()
+
+	// Clean up Coworkflow module
+	if (coworkflowModule) {
+		coworkflowModule.dispose()
+		coworkflowModule = null
+	}
 
 	// Currently no specific cleanup needed
 	loggerDeactivate()

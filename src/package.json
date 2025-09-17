@@ -235,6 +235,31 @@
 			{
 				"command": "zgsm.view.userHelperDoc",
 				"title": "%command.view.userHelperDoc.title%"
+			},
+			{
+				"command": "coworkflow.updateRequirement",
+				"title": "更新需求",
+				"category": "Coworkflow"
+			},
+			{
+				"command": "coworkflow.updateDesign",
+				"title": "更新设计",
+				"category": "Coworkflow"
+			},
+			{
+				"command": "coworkflow.runTask",
+				"title": "运行任务",
+				"category": "Coworkflow"
+			},
+			{
+				"command": "coworkflow.retryTask",
+				"title": "重试任务",
+				"category": "Coworkflow"
+			},
+			{
+				"command": "coworkflow.refreshDocuments",
+				"title": "刷新文档",
+				"category": "Coworkflow"
 			}
 		],
 		"menus": {
@@ -665,6 +690,21 @@
 					"minimum": 1,
 					"maximum": 200,
 					"description": "%settings.codeIndex.embeddingBatchSize.description%"
+				},
+				"coworkflow.enableCodeLens": {
+					"type": "boolean",
+					"default": true,
+					"description": "启用 Coworkflow CodeLens 功能"
+				},
+				"coworkflow.enableDecorations": {
+					"type": "boolean",
+					"default": true,
+					"description": "启用 Coworkflow 装饰功能"
+				},
+				"coworkflow.enableFileWatcher": {
+					"type": "boolean",
+					"default": true,
+					"description": "启用 Coworkflow 文件监视功能"
 				}
 			}
 		}
