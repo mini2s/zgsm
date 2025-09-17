@@ -1,6 +1,5 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import OpenAI, { AzureOpenAI } from "openai"
-import axios from "axios"
 import { v7 as uuidv7 } from "uuid"
 
 import {

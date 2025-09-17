@@ -161,7 +161,7 @@ export const AutoApproveDropdown = ({ disabled = false, triggerClassName = "" }:
 					disabled={disabled}
 					data-testid="auto-approve-dropdown-trigger"
 					className={cn(
-						"inline-flex items-center gap-1.5 relative whitespace-nowrap px-1.5 py-1 text-xs",
+						"inline-flex items-center gap-1 relative whitespace-nowrap px-1.5 py-1 text-xs",
 						"bg-transparent border border-[rgba(255,255,255,0.08)] rounded-md text-vscode-foreground",
 						"transition-all duration-150 focus:outline-none focus-visible:ring-1 focus-visible:ring-vscode-focusBorder focus-visible:ring-inset",
 						disabled
@@ -174,7 +174,6 @@ export const AutoApproveDropdown = ({ disabled = false, triggerClassName = "" }:
 					) : (
 						<CheckCheck className="size-3 flex-shrink-0" />
 					)}
-
 					<span className="truncate min-w-0">
 						{!effectiveAutoApprovalEnabled
 							? t("chat:autoApprove.triggerLabelOff")
@@ -197,6 +196,23 @@ export const AutoApproveDropdown = ({ disabled = false, triggerClassName = "" }:
 							<h4 className="m-0 font-bold text-base text-vscode-foreground">
 								{t("chat:autoApprove.title")}
 							</h4>
+							<label
+								className="flex items-center gap-2 cursor-pointer"
+								onClick={(e) => {
+									// Prevent label click when clicking on the toggle switch itself
+									if ((e.target as HTMLElement).closest('[role="switch"]')) {
+										e.preventDefault()
+										return
+									}
+									handleAutoApprovalToggle()
+								}}>
+								<ToggleSwitch
+									checked={effectiveAutoApprovalEnabled}
+									aria-label="Toggle auto-approval"
+									onChange={handleAutoApprovalToggle}
+								/>
+								<span className={cn("text-sm font-bold select-none")}>Enabled</span>
+							</label>
 						</div>
 						<p className="m-0 text-xs text-vscode-descriptionForeground">
 							{t("chat:autoApprove.description")}
@@ -274,24 +290,6 @@ export const AutoApproveDropdown = ({ disabled = false, triggerClassName = "" }:
 								<span>{t("chat:autoApprove.none")}</span>
 							</button>
 						</div>
-
-						<label
-							className="flex items-center gap-2 pr-2 cursor-pointer"
-							onClick={(e) => {
-								// Prevent label click when clicking on the toggle switch itself
-								if ((e.target as HTMLElement).closest('[role="switch"]')) {
-									e.preventDefault()
-									return
-								}
-								handleAutoApprovalToggle()
-							}}>
-							<ToggleSwitch
-								checked={effectiveAutoApprovalEnabled}
-								aria-label="Toggle auto-approval"
-								onChange={handleAutoApprovalToggle}
-							/>
-							<span className={cn("text-sm font-bold select-none")}>Enabled</span>
-						</label>
 					</div>
 				</div>
 			</PopoverContent>
