@@ -68,6 +68,7 @@ import {
 import { cn } from "@/lib/utils"
 import { getLine } from "@/utils/path-mentions"
 import { useZgsmUserInfo } from "@/hooks/useZgsmUserInfo"
+import { format } from "date-fns"
 
 interface ChatRowProps {
 	message: ClineMessage
@@ -323,17 +324,25 @@ export const ChatRowContent = ({
 					apiReqCancelReason !== null && apiReqCancelReason !== undefined ? (
 						apiReqCancelReason === "user_cancelled" ? (
 							<span style={{ color: normalColor, fontWeight: "bold" }}>
-								{t("chat:apiRequest.cancelled")}
+								{t("chat:apiRequest.cancelled")}{" "}
+								{message.ts ? format(new Date(message.ts), "yyyy-MM-dd HH:mm:ss") : ""}
 							</span>
 						) : (
 							<span style={{ color: errorColor, fontWeight: "bold" }}>
-								{t("chat:apiRequest.streamingFailed")}
+								{t("chat:apiRequest.streamingFailed")}{" "}
+								{message.ts ? format(new Date(message.ts), "yyyy-MM-dd HH:mm:ss") : ""}
 							</span>
 						)
 					) : cost !== null && cost !== undefined ? (
-						<span style={{ color: normalColor }}>{t("chat:apiRequest.title")}</span>
+						<span style={{ color: normalColor }}>
+							{t("chat:apiRequest.title")}{" "}
+							{message.ts ? format(new Date(message.ts), "yyyy-MM-dd HH:mm:ss") : ""}
+						</span>
 					) : apiRequestFailedMessage ? (
-						<span style={{ color: errorColor }}>{t("chat:apiRequest.failed")}</span>
+						<span style={{ color: errorColor }}>
+							{t("chat:apiRequest.failed")}{" "}
+							{message.ts ? format(new Date(message.ts), "yyyy-MM-dd HH:mm:ss") : ""}
+						</span>
 					) : (
 						<span style={{ color: normalColor }}>{t("chat:apiRequest.streaming")}</span>
 					),
@@ -1216,6 +1225,7 @@ export const ChatRowContent = ({
 										username: userInfo?.name || t("chat:feedback.defaultUserName"),
 									})}
 								</span>
+								{message.ts ? format(new Date(message.ts), "yyyy-MM-dd HH:mm:ss") : ""}
 							</div>
 							<div
 								className={cn(
