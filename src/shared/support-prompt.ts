@@ -119,6 +119,9 @@ Output only the summary of the conversation so far, without any additional comme
 ==============  待完成任务: start ===============
 
 \${selectedText}
+
+**如果当前任务中明确有测试要求,请严格遵守以下规则:**
+
 - 确保所有测试用例（100%）都通过
 - 如果测试用例没有全部通过，**则绝对不许使用 attempt_completion**，而是**必须**使用 \`ask_followup_question\` 工具，并询问我：“测试未完全通过（当前通过率：[请填入实际通过率]%），是否可以结束任务？”。在我给出肯定答复前，请不要结束。
 
@@ -144,6 +147,9 @@ Output only the summary of the conversation so far, without any additional comme
 ==============  待重试任务: start ===============
 
 \${selectedText}
+
+**如果当前任务中明确有测试要求,请严格遵守以下规则:**
+
 - 确保所有测试用例（100%）都通过
 - 如果测试用例没有全部通过，**则绝对不许使用 attempt_completion**，而是**必须**使用 \`ask_followup_question\` 工具，并询问我：“测试未完全通过（当前通过率：[请填入实际通过率]%），是否可以结束任务？”。在我给出肯定答复前，请不要结束。
 
