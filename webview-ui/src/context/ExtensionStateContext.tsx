@@ -215,7 +215,7 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		screenshotQuality: 75,
 		terminalOutputLineLimit: 500,
 		terminalOutputCharacterLimit: 50000,
-		maxReadCharacterLimit: 20000,
+		maxReadCharacterLimit: 30000,
 		terminalShellIntegrationTimeout: 4000,
 		mcpEnabled: true,
 		enableMcpServerCreation: false,
@@ -359,6 +359,18 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 					}
 					if (newState.marketplaceInstalledMetadata !== undefined) {
 						setMarketplaceInstalledMetadata(newState.marketplaceInstalledMetadata)
+					}
+					break
+				}
+				case "action": {
+					if (message.action === "toggleAutoApprove") {
+						// Toggle the auto-approval state
+						setState((prevState) => {
+							const newValue = !(prevState.autoApprovalEnabled ?? false)
+							// Also send the update to the extension
+							vscode.postMessage({ type: "autoApprovalEnabled", bool: newValue })
+							return { ...prevState, autoApprovalEnabled: newValue }
+						})
 					}
 					break
 				}

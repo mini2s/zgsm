@@ -7,6 +7,7 @@ import * as vscode from "vscode"
 import { MarkdownSectionExtractor, MarkdownSection, SectionExtractionOptions } from "./MarkdownSectionExtractor"
 import { CoworkflowCommandContext, CoworkflowDocumentType, CoworkflowError } from "./types"
 import { SectionExtractionErrorHandler } from "./SectionExtractionErrorHandler"
+import { getOutputChannel } from "../../../extension"
 
 /**
  * 内容提取上下文
@@ -97,10 +98,28 @@ export class SectionContentExtractor {
 	private performanceMetrics = new Map<string, number>()
 	private errorHandler: SectionExtractionErrorHandler
 
-	constructor(strategy: Partial<ExtractionStrategy> = {}) {
+	constructor(
+		outputChannelOrStrategy?: vscode.OutputChannel | Partial<ExtractionStrategy>,
+		strategy?: Partial<ExtractionStrategy>,
+	) {
 		this.sectionExtractor = new MarkdownSectionExtractor()
-		this.extractionStrategy = { ...DEFAULT_EXTRACTION_STRATEGY, ...strategy }
-		this.errorHandler = new SectionExtractionErrorHandler()
+
+		// 处理参数重载
+		let outputChannel: vscode.OutputChannel
+		let extractionStrategy: Partial<ExtractionStrategy>
+
+		if (outputChannelOrStrategy && "appendLine" in outputChannelOrStrategy) {
+			// 第一个参数是 OutputChannel
+			outputChannel = outputChannelOrStrategy
+			extractionStrategy = strategy || {}
+		} else {
+			// 第一个参数是 strategy 或者没有参数（向后兼容）
+			outputChannel = getOutputChannel()
+			extractionStrategy = (outputChannelOrStrategy as Partial<ExtractionStrategy>) || {}
+		}
+
+		this.extractionStrategy = { ...DEFAULT_EXTRACTION_STRATEGY, ...extractionStrategy }
+		this.errorHandler = new SectionExtractionErrorHandler(outputChannel)
 	}
 
 	/**

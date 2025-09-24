@@ -18,8 +18,8 @@ type AccountViewProps = {
 
 export const ZgsmAccountView = ({ apiConfiguration, onDone }: AccountViewProps) => {
 	const { t } = useAppTranslation()
-	const { userInfo, logoPic, hash } = useZgsmUserInfo(apiConfiguration)
-
+	const { userInfo, logoPic, hash } = useZgsmUserInfo(apiConfiguration?.zgsmAccessToken)
+	console.log("New Credit hash: ", hash)
 	const rooLogoUri = (window as any).COSTRICT_BASE_URI + "/logo.svg"
 
 	const handleConnectClick = () => {

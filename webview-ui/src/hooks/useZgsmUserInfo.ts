@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import axios from "axios"
 import type { ProviderSettings, ZgsmUserInfo } from "@roo-code/types"
 import { TelemetryEventName } from "@roo-code/types"
@@ -20,7 +20,7 @@ function parseJwt(token: string) {
 		throw new Error("Invalid JWT")
 	}
 	const payload = parts[1]
-	const decoded = atob(payload.replace(/-/g, "+").replace(/_/g, "/")) // base64url → base64 → decode
+	const decoded = atob(payload.replace(/-/g, "+").replace(/_/g, "/"))
 	return JSON.parse(decoded)
 }
 
@@ -42,7 +42,7 @@ async function hashToken(token: string): Promise<string> {
 export async function imageUrlToBase64(url: string): Promise<string | null> {
 	try {
 		const response = await axios.get(url, {
-			responseType: "blob", // Key! Ensure axios returns Blob
+			responseType: "blob",
 		})
 
 		const blob = response.data as Blob
@@ -51,7 +51,7 @@ export async function imageUrlToBase64(url: string): Promise<string | null> {
 			const reader = new FileReader()
 			reader.onloadend = () => resolve(reader.result as string)
 			reader.onerror = () => reject("Failed to convert blob to base64")
-			reader.readAsDataURL(blob) // Automatically adds data:image/png;base64,...
+			reader.readAsDataURL(blob)
 		})
 	} catch (error) {
 		console.error("Failed to convert image to base64", error)
@@ -59,71 +59,96 @@ export async function imageUrlToBase64(url: string): Promise<string | null> {
 	}
 }
 
-/**
- * 用于管理ZGSM用户信息的自定义Hook
- * 提供用户信息解析、头像处理、token哈希等功能
- */
-export function useZgsmUserInfo(apiConfiguration?: ProviderSettings): ZgsmUserData {
-	const [userInfo, setUserInfo] = useState<ZgsmUserInfo | null>(null)
-	const [hash, setHash] = useState("")
-	const [logoPic, setLogoPic] = useState("")
-	const wasAuthenticatedRef = useRef(false)
+export function useZgsmUserInfo(tokenOrConfig?: string | ProviderSettings): ZgsmUserData {
+	const [data, setData] = useState<ZgsmUserData>({
+		userInfo: null,
+		logoPic: "",
+		hash: "",
+		isAuthenticated: false,
+	})
+
+	const cacheRef = useRef<{
+		token?: string
+		result?: ZgsmUserData
+		isProcessing: boolean
+	}>({ isProcessing: false })
 
 	useEffect(() => {
-		const token = apiConfiguration?.zgsmAccessToken
+		const token = typeof tokenOrConfig === "string" ? tokenOrConfig : tokenOrConfig?.zgsmAccessToken
 
-		if (token) {
-			wasAuthenticatedRef.current = true
+		if (!token) {
+			setData((prevData) => {
+				if (prevData.isAuthenticated) {
+					telemetryClient.capture(TelemetryEventName.ACCOUNT_LOGOUT_SUCCESS)
+				}
 
+				return {
+					userInfo: null,
+					logoPic: "",
+					hash: "",
+					isAuthenticated: false,
+				}
+			})
+
+			cacheRef.current = { isProcessing: false }
+			return
+		}
+
+		if (cacheRef.current.token === token && cacheRef.current.result) {
+			setData(cacheRef.current.result)
+			return
+		}
+
+		if (cacheRef.current.isProcessing) return
+		cacheRef.current.isProcessing = true
+
+		const processToken = async () => {
 			try {
-				const jwt = parseJwt(token)
+				const parsedJwt = parseJwt(token)
 
-				const basicInfo: ZgsmUserInfo = {
-					id: jwt.id,
-					name: jwt?.properties?.oauth_GitHub_username || jwt.id,
+				const userInfo: ZgsmUserInfo = {
+					id: parsedJwt.id,
+					name: parsedJwt?.properties?.oauth_GitHub_username || parsedJwt.id,
 					picture: undefined,
-					email: jwt.email,
-					phone: jwt.phone,
-					organizationName: jwt.organizationName,
-					organizationImageUrl: jwt.organizationImageUrl,
-				}
-				setUserInfo(basicInfo)
-
-				// 处理头像
-				if (jwt.avatar) {
-					imageUrlToBase64(jwt.avatar).then((base64) => {
-						if (!base64) return
-						setLogoPic(base64)
-					})
-				} else {
-					setLogoPic("")
+					email: parsedJwt.email,
+					phone: parsedJwt.phone,
+					organizationName: parsedJwt.organizationName,
+					organizationImageUrl: parsedJwt.organizationImageUrl,
 				}
 
-				// 计算token哈希
-				hashToken(token).then((result) => {
-					console.log("New Credit hash: ", result)
-					setHash(result)
-				})
+				const [logoPic, hash] = await Promise.all([
+					parsedJwt.avatar ? imageUrlToBase64(parsedJwt.avatar) : Promise.resolve(""),
+					hashToken(token),
+				])
+
+				const result: ZgsmUserData = {
+					userInfo,
+					logoPic: logoPic || "",
+					hash,
+					isAuthenticated: true,
+				}
+
+				cacheRef.current = {
+					token,
+					result,
+					isProcessing: false,
+				}
+				setData(result)
 			} catch (error) {
 				console.error("Failed to parse JWT token:", error)
-				setUserInfo(null)
-				setLogoPic("")
-				setHash("")
+				const errorResult: ZgsmUserData = {
+					userInfo: null,
+					logoPic: "",
+					hash: "",
+					isAuthenticated: true,
+				}
+				cacheRef.current.isProcessing = false
+				setData(errorResult)
 			}
-		} else if (wasAuthenticatedRef.current && !token) {
-			// 检测到登出
-			telemetryClient.capture(TelemetryEventName.ACCOUNT_LOGOUT_SUCCESS)
-			wasAuthenticatedRef.current = false
-			setUserInfo(null)
-			setLogoPic("")
-			setHash("")
 		}
-	}, [apiConfiguration?.zgsmAccessToken])
 
-	return {
-		userInfo,
-		logoPic,
-		hash,
-		isAuthenticated: !!apiConfiguration?.zgsmAccessToken,
-	}
+		processToken()
+	}, [tokenOrConfig])
+
+	return data
 }

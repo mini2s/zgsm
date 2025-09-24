@@ -9,6 +9,11 @@ import { CoworkflowCodeLensProvider } from "./CoworkflowCodeLensProvider"
 import { CoworkflowDecorationProvider } from "./CoworkflowDecorationProvider"
 import { registerCoworkflowCommands, setCommandHandlerDependencies, clearCommandHandlerDependencies } from "./commands"
 import { CoworkflowErrorHandler } from "./CoworkflowErrorHandler"
+import { TaskEditTracker } from "./TaskEditTracker"
+import { TaskContentProvider } from "./TaskContentProvider"
+import { TaskSender } from "./TaskSender"
+import { ClineProvider } from "../../webview/ClineProvider"
+import { getOutputChannel } from "../../../extension"
 
 // Re-export classes and constants for external use
 export { CoworkflowFileWatcher } from "./CoworkflowFileWatcher"
@@ -24,22 +29,58 @@ export class CoworkflowIntegration {
 	private fileWatcher: CoworkflowFileWatcher | undefined
 	private codeLensProvider: CoworkflowCodeLensProvider | undefined
 	private decorationProvider: CoworkflowDecorationProvider | undefined
+	private taskEditTracker: TaskEditTracker | undefined
+	private taskContentProvider: TaskContentProvider | undefined
+	private taskSender: TaskSender | undefined
 	private disposables: vscode.Disposable[] = []
 	private errorHandler: CoworkflowErrorHandler
 
 	constructor() {
-		this.errorHandler = new CoworkflowErrorHandler()
+		const outputChannel = getOutputChannel()
+		this.errorHandler = new CoworkflowErrorHandler(outputChannel)
 	}
 
 	/**
 	 * Activate coworkflow integration
 	 */
-	public activate(context: vscode.ExtensionContext): void {
+	public activate(context: vscode.ExtensionContext, clineProvider?: ClineProvider): void {
 		try {
 			// Initialize file watcher
 			this.fileWatcher = new CoworkflowFileWatcher()
 			this.fileWatcher.initialize()
 			this.disposables.push(this.fileWatcher)
+
+			// Initialize task-related components if ClineProvider is available
+			if (clineProvider) {
+				try {
+					// Initialize TaskEditTracker
+					this.taskEditTracker = new TaskEditTracker(clineProvider, "coworkflow-integration")
+					this.disposables.push(this.taskEditTracker)
+
+					// Initialize TaskContentProvider (no dispose method needed)
+					this.taskContentProvider = new TaskContentProvider()
+
+					// Initialize TaskSender with config from settings
+					const taskSenderConfig = this.getTaskSenderConfig(context)
+					this.taskSender = new TaskSender(taskSenderConfig)
+
+					// Connect TaskEditTracker to FileWatcher
+					this.fileWatcher.setTaskEditTracker(this.taskEditTracker)
+
+					console.log("CoworkflowIntegration: Task sync components initialized successfully")
+				} catch (taskError) {
+					const coworkflowError = this.errorHandler.createError(
+						"command_error",
+						"warning",
+						"Failed to initialize task sync components",
+						taskError as Error,
+					)
+					this.errorHandler.handleError(coworkflowError)
+					// Continue without task sync functionality
+				}
+			} else {
+				console.log("CoworkflowIntegration: ClineProvider not available, task sync disabled")
+			}
 
 			// Initialize CodeLens provider
 			this.codeLensProvider = new CoworkflowCodeLensProvider(this.fileWatcher)
@@ -66,6 +107,9 @@ export class CoworkflowIntegration {
 				codeLensProvider: this.codeLensProvider,
 				decorationProvider: this.decorationProvider,
 				fileWatcher: this.fileWatcher,
+				taskEditTracker: this.taskEditTracker,
+				taskContentProvider: this.taskContentProvider,
+				taskSender: this.taskSender,
 			})
 
 			// Add all disposables to context
@@ -123,6 +167,9 @@ export class CoworkflowIntegration {
 			this.fileWatcher = undefined
 			this.codeLensProvider = undefined
 			this.decorationProvider = undefined
+			this.taskEditTracker = undefined
+			this.taskContentProvider = undefined
+			this.taskSender = undefined
 
 			// Clear command handler dependencies
 			clearCommandHandlerDependencies()
@@ -326,6 +373,45 @@ export class CoworkflowIntegration {
 	 */
 	public getDecorationProvider(): CoworkflowDecorationProvider | undefined {
 		return this.decorationProvider
+	}
+
+	/**
+	 * Get the current task edit tracker instance
+	 */
+	public getTaskEditTracker(): TaskEditTracker | undefined {
+		return this.taskEditTracker
+	}
+
+	/**
+	 * Get the current task content provider instance
+	 */
+	public getTaskContentProvider(): TaskContentProvider | undefined {
+		return this.taskContentProvider
+	}
+
+	/**
+	 * Get the current task sender instance
+	 */
+	public getTaskSender(): TaskSender | undefined {
+		return this.taskSender
+	}
+
+	/**
+	 * 获取任务发送器配置
+	 * @param context VSCode 扩展上下文
+	 * @returns 任务发送器配置
+	 */
+	private getTaskSenderConfig(context: vscode.ExtensionContext): any {
+		// 从 VSCode 配置中读取任务同步设置
+		const config = vscode.workspace.getConfiguration("roo-code")
+
+		return {
+			type: config.get<"http" | "file" | "api">("taskSyncType") || "file",
+			endpoint: config.get<string>("taskSyncEndpoint") || ".cospec/task-sync-data.json",
+			timeout: config.get<number>("taskSyncTimeout") || 5000,
+			retryEnabled: config.get<boolean>("taskSyncRetryEnabled") ?? true,
+			headers: config.get<Record<string, string>>("taskSyncHeaders") || {},
+		}
 	}
 
 	/**

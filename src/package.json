@@ -3,7 +3,7 @@
 	"displayName": "%extension.displayName.long%",
 	"description": "%extension.description%",
 	"publisher": "zgsm-ai",
-	"version": "1.6.14-workflow",
+	"version": "1.6.14-wf8",
 	"icon": "assets/images/shenma_robot_logo_big.png",
 	"galleryBanner": {
 		"color": "#617A91",
@@ -237,6 +237,11 @@
 				"title": "%command.view.userHelperDoc.title%"
 			},
 			{
+				"command": "zgsm.toggleAutoApprove",
+				"title": "%command.toggleAutoApprove.title%",
+				"category": "%configuration.title%"
+			},
+			{
 				"command": "zgsm.coworkflow.updateSection",
 				"title": "Update Section",
 				"category": "Coworkflow"
@@ -451,6 +456,13 @@
 				"win": "ctrl+l",
 				"linux": "ctrl+l",
 				"when": "editorTextFocus && editorHasSelection"
+			},
+			{
+				"command": "zgsm.toggleAutoApprove",
+				"key": "cmd+alt+a",
+				"mac": "cmd+alt+a",
+				"win": "ctrl+alt+a",
+				"linux": "ctrl+alt+a"
 			}
 		],
 		"submenus": [

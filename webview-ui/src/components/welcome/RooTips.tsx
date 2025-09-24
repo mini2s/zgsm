@@ -87,7 +87,7 @@ Implementing a task`,
 			},
 		},
 		{
-			name: "Workflow",
+			name: "Strict",
 			slug: "workflow",
 			description: "Chat first, then build. Explore ideas and iterate as you discover needs.",
 			// description: t("welcome:routers.requesty.description"),

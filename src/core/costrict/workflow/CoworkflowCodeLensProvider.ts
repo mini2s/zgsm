@@ -14,6 +14,7 @@ import {
 } from "./types"
 import { CoworkflowErrorHandler } from "./CoworkflowErrorHandler"
 import { getCommand } from "../../../utils/commands"
+import { getOutputChannel } from "../../../extension"
 
 export class CoworkflowCodeLensProvider implements ICoworkflowCodeLensProvider {
 	private onDidChangeCodeLensesEmitter = new vscode.EventEmitter<void>()
@@ -22,7 +23,8 @@ export class CoworkflowCodeLensProvider implements ICoworkflowCodeLensProvider {
 	private fileWatcher?: import("./CoworkflowFileWatcher").CoworkflowFileWatcher
 
 	constructor(fileWatcher?: import("./CoworkflowFileWatcher").CoworkflowFileWatcher) {
-		this.errorHandler = new CoworkflowErrorHandler()
+		const outputChannel = getOutputChannel()
+		this.errorHandler = new CoworkflowErrorHandler(outputChannel)
 		this.fileWatcher = fileWatcher
 	}
 

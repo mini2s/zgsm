@@ -16,6 +16,7 @@ import {
 	IHierarchyDecorationStrategy,
 } from "./types"
 import { CoworkflowErrorHandler } from "./CoworkflowErrorHandler"
+import { getOutputChannel } from "../../../extension"
 
 /**
  * 层级检测器实现
@@ -299,7 +300,8 @@ export class CoworkflowDecorationProvider implements IHierarchicalCoworkflowDeco
 	private hierarchyConfig: HierarchyDecorationConfig
 
 	constructor(hierarchyConfig?: HierarchyDecorationConfig) {
-		this.errorHandler = new CoworkflowErrorHandler()
+		const outputChannel = getOutputChannel()
+		this.errorHandler = new CoworkflowErrorHandler(outputChannel)
 		this.hierarchyConfig = hierarchyConfig || DEFAULT_HIERARCHY_CONFIG
 		this.hierarchyDetector = new HierarchyDetector()
 		this.hierarchyTypeManager = new HierarchyDecorationTypeManager(this.hierarchyConfig)

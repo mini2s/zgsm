@@ -78,7 +78,8 @@ export class SectionExtractionErrorHandler {
 	private performanceConfig: PerformanceConfig
 	private outputChannel: vscode.OutputChannel
 
-	constructor(config: Partial<PerformanceConfig> = {}) {
+	constructor(outputChannel: vscode.OutputChannel, config: Partial<PerformanceConfig> = {}) {
+		this.outputChannel = outputChannel
 		this.performanceConfig = { ...DEFAULT_PERFORMANCE_CONFIG, ...config }
 		this.errorStats = {
 			totalErrors: 0,
@@ -86,7 +87,6 @@ export class SectionExtractionErrorHandler {
 			errorsByDocumentType: new Map(),
 			fallbackUsage: new Map(),
 		}
-		this.outputChannel = vscode.window.createOutputChannel("Coworkflow Section Extraction")
 	}
 
 	/**
@@ -200,7 +200,7 @@ export class SectionExtractionErrorHandler {
 	 * 清理资源
 	 */
 	public dispose(): void {
-		this.outputChannel.dispose()
+		// OutputChannel 的销毁由外部管理，这里不再处理
 	}
 
 	/**

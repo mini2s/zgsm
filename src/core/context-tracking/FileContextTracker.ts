@@ -8,6 +8,7 @@ import fs from "fs/promises"
 import { ContextProxy } from "../config/ContextProxy"
 import type { FileMetadataEntry, RecordSource, TaskMetadata } from "./FileContextTrackerTypes"
 import { ClineProvider } from "../webview/ClineProvider"
+import type { ITaskEditTracker } from "../costrict/workflow/types"
 
 // This class is responsible for tracking file operations that may result in stale context.
 // If a user modifies a file outside of Costrict, the context may become stale and need to be updated.
@@ -29,6 +30,9 @@ export class FileContextTracker {
 	private recentlyModifiedFiles = new Set<string>()
 	private recentlyEditedByRoo = new Set<string>()
 	private checkpointPossibleFiles = new Set<string>()
+
+	// Task edit tracker for .cospec/tasks.md files
+	private taskEditTracker: ITaskEditTracker | undefined
 
 	constructor(provider: ClineProvider, taskId: string) {
 		this.providerRef = new WeakRef(provider)
@@ -69,6 +73,15 @@ export class FileContextTracker {
 			} else {
 				this.recentlyModifiedFiles.add(filePath) // This was a user edit, we will inform Costrict
 				this.trackFileContext(filePath, "user_edited") // Update the task metadata with file tracking
+
+				// 特殊处理 .cospec/tasks.md 文件
+				if (this.isTasksFile(filePath) && this.taskEditTracker) {
+					try {
+						this.taskEditTracker.onFileEdited(filePath, "user_edited")
+					} catch (error) {
+						console.error("Error notifying TaskEditTracker:", error)
+					}
+				}
 			}
 		})
 
@@ -217,11 +230,38 @@ export class FileContextTracker {
 		this.recentlyEditedByRoo.add(filePath)
 	}
 
+	/**
+	 * 设置任务编辑跟踪器
+	 * @param taskEditTracker 任务编辑跟踪器实例
+	 */
+	setTaskEditTracker(taskEditTracker: ITaskEditTracker): void {
+		this.taskEditTracker = taskEditTracker
+	}
+
+	/**
+	 * 获取任务编辑跟踪器
+	 * @returns 任务编辑跟踪器实例或undefined
+	 */
+	getTaskEditTracker(): ITaskEditTracker | undefined {
+		return this.taskEditTracker
+	}
+
+	/**
+	 * 检查文件是否为 .cospec/tasks.md 文件
+	 * @param filePath 文件路径
+	 * @returns 是否为任务文件
+	 */
+	private isTasksFile(filePath: string): boolean {
+		const normalizedPath = path.normalize(filePath).replace(/\\/g, "/")
+		return normalizedPath.includes(".cospec/tasks.md") || normalizedPath.endsWith("tasks.md")
+	}
+
 	// Disposes all file watchers
 	dispose(): void {
 		for (const watcher of this.fileWatchers.values()) {
 			watcher.dispose()
 		}
 		this.fileWatchers.clear()
+		this.taskEditTracker = undefined
 	}
 }

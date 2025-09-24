@@ -56,6 +56,13 @@ import { defaultLang } from "./utils/language"
 
 let outputChannel: vscode.OutputChannel
 let extensionContext: vscode.ExtensionContext
+
+/**
+ * Get the global output channel instance
+ */
+export function getOutputChannel(): vscode.OutputChannel {
+	return outputChannel
+}
 // let cloudService: CloudService | undefined
 
 // let authStateChangedHandler: ((data: { state: AuthState; previousState: AuthState }) => Promise<void>) | undefined
@@ -199,6 +206,14 @@ export async function activate(context: vscode.ExtensionContext) {
 	// context.subscriptions.push(cloudService)
 
 	// // Trigger initial cloud profile sync now that CloudService is ready
+	// try {
+	// 	await provider.initializeCloudProfileSyncWhenReady()
+	// } catch (error) {
+	// 	outputChannel.appendLine(
+	// 		`[CloudService] Failed to initialize cloud profile sync: ${error instanceof Error ? error.message : String(error)}`,
+	// 	)
+	// }
+	// Trigger initial cloud profile sync now that CloudService is ready.
 	// try {
 	// 	await provider.initializeCloudProfileSyncWhenReady()
 	// } catch (error) {

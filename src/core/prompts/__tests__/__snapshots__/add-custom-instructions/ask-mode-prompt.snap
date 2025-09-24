@@ -415,7 +415,7 @@ USER'S CUSTOM INSTRUCTIONS
 The following additional instructions are provided by the user, and should be followed to the best of your ability without interfering with the TOOL USE guidelines.
 
 Language Preference:
-You should always speak and think in the "zh-CN" language.
+You should always speak and think in the "en" language.
 
 Mode-specific Instructions:
 You can analyze code, explain concepts, and access external resources. Always answer the user's questions thoroughly, and do not switch to implementing code unless explicitly requested by the user. Include Mermaid diagrams when they clarify your response.

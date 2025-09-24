@@ -3,13 +3,23 @@
  */
 
 import * as vscode from "vscode"
-import { CoworkflowCodeLens, CoworkflowCommandContext, ContentExtractionContext } from "./types"
+import {
+	CoworkflowCodeLens,
+	CoworkflowCommandContext,
+	ContentExtractionContext,
+	TaskRunData,
+	TaskSenderConfig,
+} from "./types"
 import { CoworkflowErrorHandler } from "./CoworkflowErrorHandler"
 import { getCommand } from "../../../utils/commands"
 import { supportPrompt, type SupportPromptType } from "../../../shared/support-prompt"
 import { ClineProvider } from "../../webview/ClineProvider"
 import { SectionContentExtractor, createContentExtractionContext } from "./SectionContentExtractor"
+import { TaskEditTracker } from "./TaskEditTracker"
+import { TaskContentProvider } from "./TaskContentProvider"
+import { TaskSender } from "./TaskSender"
 import path from "path"
+import { getOutputChannel } from "../../../extension"
 
 /**
  * Command identifiers for coworkflow operations
@@ -29,22 +39,77 @@ interface CommandHandlerDependencies {
 	codeLensProvider?: any // Will be properly typed when providers are connected
 	decorationProvider?: any
 	fileWatcher?: any
+	taskEditTracker?: any
+	taskContentProvider?: any
+	taskSender?: any
 }
 
 let dependencies: CommandHandlerDependencies = {}
 let errorHandler: CoworkflowErrorHandler
 let sectionContentExtractor: SectionContentExtractor
 
+// 任务同步相关组件
+let taskEditTracker: TaskEditTracker | undefined
+let taskContentProvider: TaskContentProvider | undefined
+let taskSender: TaskSender | undefined
+
 /**
  * Set command handler dependencies
  */
 export function setCommandHandlerDependencies(deps: CommandHandlerDependencies): void {
 	dependencies = deps
+
+	// 设置任务同步相关组件的全局引用
+	if (deps.taskEditTracker) {
+		taskEditTracker = deps.taskEditTracker
+	}
+	if (deps.taskContentProvider) {
+		taskContentProvider = deps.taskContentProvider
+	}
+	if (deps.taskSender) {
+		taskSender = deps.taskSender
+	}
 	if (!errorHandler) {
-		errorHandler = new CoworkflowErrorHandler()
+		const outputChannel = getOutputChannel()
+		errorHandler = new CoworkflowErrorHandler(outputChannel)
 	}
 	if (!sectionContentExtractor) {
-		sectionContentExtractor = new SectionContentExtractor()
+		const sectionOutputChannel = getOutputChannel()
+		sectionContentExtractor = new SectionContentExtractor(sectionOutputChannel, {})
+	}
+
+	// 初始化任务同步组件
+	initializeTaskSyncComponents()
+}
+
+/**
+ * 初始化任务同步组件
+ */
+function initializeTaskSyncComponents(): void {
+	try {
+		// 初始化任务内容提供器
+		if (!taskContentProvider) {
+			taskContentProvider = new TaskContentProvider()
+		}
+
+		// 初始化任务发送器（使用默认配置）
+		if (!taskSender) {
+			const defaultConfig: TaskSenderConfig = {
+				type: "file",
+				endpoint: path.join(
+					vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || "",
+					".cospec",
+					"task-runs.json",
+				),
+				retryEnabled: true,
+				timeout: 30000,
+			}
+			taskSender = new TaskSender(defaultConfig)
+		}
+
+		console.log("TaskSync: 任务同步组件初始化完成")
+	} catch (error) {
+		console.error("TaskSync: 任务同步组件初始化失败:", error)
 	}
 }
 
@@ -59,6 +124,20 @@ export function clearCommandHandlerDependencies(): void {
 	if (sectionContentExtractor) {
 		sectionContentExtractor.cleanup()
 	}
+
+	// 清理任务同步组件
+	if (taskEditTracker) {
+		taskEditTracker.dispose()
+		taskEditTracker = undefined
+	}
+	if (taskContentProvider) {
+		taskContentProvider.clearCache()
+		taskContentProvider = undefined
+	}
+	if (taskSender) {
+		taskSender.clearRetryState()
+		taskSender = undefined
+	}
 }
 
 /**
@@ -69,7 +148,8 @@ export function registerCoworkflowCommands(context: vscode.ExtensionContext): vs
 
 	// Initialize error handler if not already done
 	if (!errorHandler) {
-		errorHandler = new CoworkflowErrorHandler()
+		const commandOutputChannel = getOutputChannel()
+		errorHandler = new CoworkflowErrorHandler(commandOutputChannel)
 	}
 
 	try {
@@ -339,13 +419,15 @@ async function handleUpdateSection(codeLens: CoworkflowCodeLens): Promise<void> 
 		}
 
 		// Create the prompt using supportPrompt
-		const prompt = supportPrompt.create(promptType, {
-			scope,
-			selectedText,
+		await ClineProvider.handleWorkflowAction(
+			promptType,
+			{
+				scope,
+				selectedText,
+				mode,
+			},
 			mode,
-		})
-
-		await ClineProvider.handleWorkflowAction(prompt, mode)
+		)
 
 		// Log detailed context for debugging
 		console.log("CoworkflowCommands: Update section requested", {
@@ -399,13 +481,19 @@ async function handleRunTask(codeLens: CoworkflowCodeLens): Promise<void> {
 		const scope = getScopePath(commandContext.uri)
 		const selectedText = await getTaskBlockContent(commandContext)
 
+		// 任务同步功能：收集和发送任务数据
+		await handleTaskSync(commandContext, selectedText)
+
 		// Create the prompt using supportPrompt
-		const prompt = supportPrompt.create("WORKFLOW_TASK_RUN", {
-			scope,
-			selectedText,
-			mode: taskMode,
-		})
-		await ClineProvider.handleWorkflowAction(prompt, taskMode)
+		await ClineProvider.handleWorkflowAction(
+			"WORKFLOW_TASK_RUN",
+			{
+				scope,
+				selectedText,
+				mode: taskMode,
+			},
+			taskMode,
+		)
 	} catch (error) {
 		handleCommandError("Run Task", error, codeLens?.range)
 	}
@@ -447,14 +535,16 @@ async function handleRetryTask(codeLens: CoworkflowCodeLens): Promise<void> {
 		// Get required parameters for prompt
 		const scope = getScopePath(commandContext.uri)
 		const selectedText = await getTaskBlockContent(commandContext)
-
-		// Create the prompt using supportPrompt
-		const prompt = supportPrompt.create("WORKFLOW_TASK_RETRY", {
-			scope,
-			selectedText,
-			mode: taskMode,
-		})
-		await ClineProvider.handleWorkflowAction(prompt, taskMode)
+		// // Create the prompt using supportPrompt
+		await ClineProvider.handleWorkflowAction(
+			"WORKFLOW_TASK_RETRY",
+			{
+				scope,
+				selectedText,
+				mode: taskMode,
+			},
+			taskMode,
+		)
 	} catch (error) {
 		handleCommandError("Retry Task", error, codeLens?.range)
 	}
@@ -683,4 +773,125 @@ export function isCoworkflowDocument(uri: vscode.Uri): boolean {
 
 	// Only allow the three specific file names
 	return ["requirements.md", "design.md", "tasks.md"].includes(fileName || "")
+}
+
+/**
+ * 处理任务同步功能
+ * 收集任务数据并发送到配置的端点，集成 git diff 功能精确检测变更
+ */
+async function handleTaskSync(commandContext: CoworkflowCommandContext, selectedText: string): Promise<void> {
+	try {
+		// 确保任务同步组件已初始化
+		if (!taskContentProvider || !taskSender) {
+			console.warn("TaskSync: 任务同步组件未初始化，跳过同步")
+			return
+		}
+
+		const filePath = commandContext.uri.fsPath
+
+		// 检查是否为 tasks.md 文件
+		if (!filePath.endsWith("tasks.md")) {
+			return
+		}
+
+		// 获取完整文件内容
+		const fullFileContent = await taskContentProvider.getFileContent(filePath)
+
+		// 解析当前行的任务信息
+		const taskLine = commandContext.context?.lineNumber || 0
+		const taskInfo = taskContentProvider.parseTaskAtLine(fullFileContent, taskLine)
+
+		if (!taskInfo) {
+			console.warn("TaskSync: 无法解析任务信息，跳过同步")
+			return
+		}
+
+		// 获取增强的编辑状态（包含 git diff 信息）
+		let hasUserEdits = false
+		let lastEditTime = Date.now()
+		let diffContent = ""
+		let changedLines: import("./types").GitChangedLine[] = []
+		let hasGitChanges = false
+		let fileStatus: "modified" | "added" | "deleted" | "renamed" | "untracked" | "unchanged" = "unchanged"
+
+		try {
+			if (taskEditTracker) {
+				// 获取增强的编辑状态
+				const enhancedState = await taskEditTracker.getEnhancedEditState(filePath)
+
+				// 传统编辑状态
+				hasUserEdits = enhancedState.editState?.hasUserEdits || false
+				lastEditTime = enhancedState.editState?.lastEditTime || Date.now()
+
+				// Git diff 信息
+				if (enhancedState.gitDiff) {
+					diffContent = enhancedState.gitDiff.diffContent
+					changedLines = enhancedState.gitDiff.changedLines
+					hasGitChanges = enhancedState.gitDiff.hasGitChanges
+					fileStatus = enhancedState.gitDiff.fileStatus
+				}
+
+				console.log("TaskSync: 获取到增强编辑状态", {
+					hasUserEdits,
+					hasGitChanges,
+					fileStatus,
+					changedLinesCount: changedLines.length,
+					hasAnyChanges: enhancedState.hasAnyChanges,
+				})
+			}
+		} catch (error) {
+			console.warn("TaskSync: 获取增强编辑状态时发生错误，使用默认值:", error)
+			hasUserEdits = false
+		}
+
+		// 构建任务运行数据（包含 git diff 信息）
+		const taskRunData: TaskRunData = {
+			filePath: path.relative(vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || "", filePath),
+			timestamp: Date.now(),
+			taskLine: taskInfo.line,
+			taskContent: taskInfo.content,
+			taskStatus: taskInfo.status,
+			fullFileContent,
+			hasUserEdits,
+			lastEditTime,
+			// Git diff 相关字段
+			diffContent: diffContent || undefined,
+			changedLines: changedLines.length > 0 ? changedLines : undefined,
+			hasGitChanges,
+			fileStatus,
+			workspacePath: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || "",
+			taskId: taskInfo.taskId,
+			userId: undefined, // 可以从认证服务获取
+		}
+
+		// 发送任务数据
+		const result = await taskSender.send(taskRunData)
+
+		if (result.success) {
+			console.log("TaskSync: 任务数据发送成功", {
+				taskLine: taskRunData.taskLine,
+				taskContent: taskRunData.taskContent,
+				hasUserEdits: taskRunData.hasUserEdits,
+				hasGitChanges: taskRunData.hasGitChanges,
+				fileStatus: taskRunData.fileStatus,
+				changedLinesCount: taskRunData.changedLines?.length || 0,
+				timestamp: result.timestamp,
+			})
+
+			// 成功发送后清除编辑状态
+			try {
+				if (taskEditTracker && (hasUserEdits || hasGitChanges)) {
+					taskEditTracker.clearEditState(filePath)
+					console.log("TaskSync: 已清除编辑状态")
+				}
+			} catch (error) {
+				console.warn("TaskSync: 清除编辑状态时发生错误:", error)
+			}
+		} else {
+			console.error("TaskSync: 任务数据发送失败", result.error)
+		}
+	} catch (error) {
+		console.error("TaskSync: 处理任务同步时发生错误:", error)
+		// 不抛出错误，避免影响主要功能
+	}
 }

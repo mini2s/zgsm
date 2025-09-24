@@ -11,8 +11,12 @@ import {
 	CoworkflowDocumentInfo,
 	CoworkflowWatcherConfig,
 	CoworkflowFileChangeEvent,
+	ITaskEditTracker,
 } from "./types"
 import { CoworkflowErrorHandler } from "./CoworkflowErrorHandler"
+import { TaskEditTracker } from "./TaskEditTracker"
+import { ClineProvider } from "../../webview/ClineProvider"
+import { getOutputChannel } from "../../../extension"
 
 export class CoworkflowFileWatcher implements ICoworkflowFileWatcher {
 	private disposables: vscode.Disposable[] = []
@@ -21,6 +25,7 @@ export class CoworkflowFileWatcher implements ICoworkflowFileWatcher {
 	private config: CoworkflowWatcherConfig
 	private onFileChangedEmitter = new vscode.EventEmitter<CoworkflowFileChangeEvent>()
 	private errorHandler: CoworkflowErrorHandler
+	private taskEditTracker: ITaskEditTracker | undefined
 
 	/** Event fired when a coworkflow file changes */
 	public readonly onDidFileChange = this.onFileChangedEmitter.event
@@ -35,7 +40,8 @@ export class CoworkflowFileWatcher implements ICoworkflowFileWatcher {
 			],
 			...config,
 		}
-		this.errorHandler = new CoworkflowErrorHandler()
+		const outputChannel = getOutputChannel()
+		this.errorHandler = new CoworkflowErrorHandler(outputChannel)
 	}
 
 	public initialize(): void {
@@ -60,6 +66,7 @@ export class CoworkflowFileWatcher implements ICoworkflowFileWatcher {
 			this.clearAllWatchers()
 			this.disposables.forEach((d) => d.dispose())
 			this.disposables = []
+			this.taskEditTracker = undefined
 			this.errorHandler.dispose()
 		} catch (error) {
 			const coworkflowError = this.errorHandler.createError(
@@ -70,6 +77,22 @@ export class CoworkflowFileWatcher implements ICoworkflowFileWatcher {
 			)
 			this.errorHandler.handleError(coworkflowError)
 		}
+	}
+
+	/**
+	 * 设置任务编辑跟踪器
+	 * @param taskEditTracker 任务编辑跟踪器实例
+	 */
+	public setTaskEditTracker(taskEditTracker: ITaskEditTracker): void {
+		this.taskEditTracker = taskEditTracker
+	}
+
+	/**
+	 * 获取任务编辑跟踪器
+	 * @returns 任务编辑跟踪器实例或undefined
+	 */
+	public getTaskEditTracker(): ITaskEditTracker | undefined {
+		return this.taskEditTracker
 	}
 
 	public onFileChanged(uri: vscode.Uri): void {
@@ -85,6 +108,22 @@ export class CoworkflowFileWatcher implements ICoworkflowFileWatcher {
 			if (context) {
 				context.lastModified = new Date()
 				context.documentInfo = documentInfo
+			}
+
+			// 如果是 tasks.md 文件且有 TaskEditTracker，通知编辑事件
+			if (documentInfo.type === "tasks" && this.taskEditTracker) {
+				try {
+					this.taskEditTracker.onFileEdited(uri.fsPath, "user_edited")
+				} catch (trackerError) {
+					const coworkflowError = this.errorHandler.createError(
+						"file_system_error",
+						"warning",
+						"Error notifying TaskEditTracker of file change",
+						trackerError as Error,
+						uri,
+					)
+					this.errorHandler.handleError(coworkflowError)
+				}
 			}
 
 			// Emit change event

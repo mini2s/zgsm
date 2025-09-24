@@ -15,7 +15,8 @@ export class CoworkflowErrorHandler implements ICoworkflowErrorHandler {
 	private config: CoworkflowErrorConfig
 	private outputChannel: vscode.OutputChannel
 
-	constructor(config?: Partial<CoworkflowErrorConfig>) {
+	constructor(outputChannel: vscode.OutputChannel, config?: Partial<CoworkflowErrorConfig>) {
+		this.outputChannel = outputChannel
 		this.config = {
 			logToConsole: true,
 			showUserNotifications: true,
@@ -23,8 +24,6 @@ export class CoworkflowErrorHandler implements ICoworkflowErrorHandler {
 			includeTechnicalDetails: false,
 			...config,
 		}
-
-		this.outputChannel = vscode.window.createOutputChannel("Coworkflow")
 	}
 
 	public handleError(error: CoworkflowError): void {
@@ -105,7 +104,7 @@ export class CoworkflowErrorHandler implements ICoworkflowErrorHandler {
 	}
 
 	public dispose(): void {
-		this.outputChannel.dispose()
+		// OutputChannel is now managed externally, so we don't dispose it here
 	}
 
 	private shouldShowNotification(severity: CoworkflowErrorSeverity): boolean {

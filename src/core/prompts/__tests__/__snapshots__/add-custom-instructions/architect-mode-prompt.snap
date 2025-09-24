@@ -518,7 +518,7 @@ USER'S CUSTOM INSTRUCTIONS
 The following additional instructions are provided by the user, and should be followed to the best of your ability without interfering with the TOOL USE guidelines.
 
 Language Preference:
-You should always speak and think in the "zh-CN" language.
+You should always speak and think in the "en" language.
 
 Mode-specific Instructions:
 1. Do some information gathering (using provided tools) to get more context about the task.

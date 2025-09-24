@@ -92,6 +92,8 @@ import { Task } from "../task/Task"
 import { getSystemPromptFilePath } from "../prompts/sections/custom-system-prompt"
 
 import { webviewMessageHandler } from "./webviewMessageHandler"
+import type { ClineMessage } from "@roo-code/types"
+import { readApiMessages, saveApiMessages, saveTaskMessages } from "../task-persistence"
 import { getNonce } from "./getNonce"
 import { getUri } from "./getUri"
 import { ZgsmAuthCommands } from "../costrict/auth"
@@ -150,7 +152,7 @@ export class ClineProvider
 
 	public isViewLaunched = false
 	public settingsImportedAt?: number
-	public readonly latestAnnouncementId = "sep-2025-roo-code-cloud" // Roo Code Cloud announcement
+	public readonly latestAnnouncementId = "sep-2025-code-supernova" // Code Supernova stealth model announcement
 	public readonly providerSettingsManager: ProviderSettingsManager
 	public readonly customModesManager: CustomModesManager
 
@@ -205,7 +207,35 @@ export class ClineProvider
 			const onTaskStarted = () => this.emit(RooCodeEventName.TaskStarted, instance.taskId)
 			const onTaskCompleted = (taskId: string, tokenUsage: any, toolUsage: any) =>
 				this.emit(RooCodeEventName.TaskCompleted, taskId, tokenUsage, toolUsage)
-			const onTaskAborted = () => this.emit(RooCodeEventName.TaskAborted, instance.taskId)
+			const onTaskAborted = async () => {
+				this.emit(RooCodeEventName.TaskAborted, instance.taskId)
+
+				try {
+					// Only rehydrate on genuine streaming failures.
+					// User-initiated cancels are handled by cancelTask().
+					if (instance.abortReason === "streaming_failed") {
+						// Defensive safeguard: if another path already replaced this instance, skip
+						const current = this.getCurrentTask()
+						if (current && current.instanceId !== instance.instanceId) {
+							this.log(
+								`[onTaskAborted] Skipping rehydrate: current instance ${current.instanceId} != aborted ${instance.instanceId}`,
+							)
+							return
+						}
+
+						const { historyItem } = await this.getTaskWithId(instance.taskId)
+						const rootTask = instance.rootTask
+						const parentTask = instance.parentTask
+						await this.createTaskWithHistoryItem({ ...historyItem, rootTask, parentTask })
+					}
+				} catch (error) {
+					this.log(
+						`[onTaskAborted] Failed to rehydrate after streaming failure: ${
+							error instanceof Error ? error.message : String(error)
+						}`,
+					)
+				}
+			}
 			const onTaskFocused = () => this.emit(RooCodeEventName.TaskFocused, instance.taskId)
 			const onTaskUnfocused = () => this.emit(RooCodeEventName.TaskUnfocused, instance.taskId)
 			const onTaskActive = (taskId: string) => this.emit(RooCodeEventName.TaskActive, taskId)
@@ -716,14 +746,22 @@ export class ClineProvider
 		}
 	}
 
-	public static async handleWorkflowAction(prompt: string, mode: string): Promise<void> {
-		TelemetryService.instance.captureCodeActionUsed(prompt)
-
+	public static async handleWorkflowAction(
+		type: SupportPromptType,
+		params: Record<string, string | any[]>,
+		mode: string,
+	): Promise<void> {
 		const visibleProvider = await ClineProvider.getInstance()
 
 		if (!visibleProvider) {
 			return
 		}
+		const { customSupportPrompts } = await visibleProvider.getState()
+
+		const prompt = supportPrompt.create(type, params, customSupportPrompts)
+
+		TelemetryService.instance.captureCodeActionUsed(prompt)
+
 		await visibleProvider.setMode(mode)
 
 		try {
@@ -1788,7 +1826,6 @@ export class ClineProvider
 			writeDelayMs,
 			terminalOutputLineLimit,
 			terminalOutputCharacterLimit,
-			maxReadCharacterLimit,
 			terminalShellIntegrationTimeout,
 			terminalShellIntegrationDisabled,
 			terminalCommandDelay,
@@ -1819,6 +1856,7 @@ export class ClineProvider
 			showRooIgnoredFiles,
 			language,
 			maxReadFileLine,
+			maxReadCharacterLimit,
 			maxImageFileSize,
 			maxTotalImageSize,
 			terminalCompressProgressBar,
@@ -1906,7 +1944,6 @@ export class ClineProvider
 			writeDelayMs: writeDelayMs ?? DEFAULT_WRITE_DELAY_MS,
 			terminalOutputLineLimit: terminalOutputLineLimit ?? 500,
 			terminalOutputCharacterLimit: terminalOutputCharacterLimit ?? DEFAULT_TERMINAL_OUTPUT_CHARACTER_LIMIT,
-			maxReadCharacterLimit: maxReadCharacterLimit ?? DEFAULT_FILE_READ_CHARACTER_LIMIT,
 			terminalShellIntegrationTimeout: terminalShellIntegrationTimeout ?? Terminal.defaultShellIntegrationTimeout,
 			terminalShellIntegrationDisabled: terminalShellIntegrationDisabled ?? false,
 			terminalCommandDelay: terminalCommandDelay ?? 0,
@@ -1943,6 +1980,7 @@ export class ClineProvider
 			language: language ?? formatLanguage(await defaultLang()),
 			renderContext: this.renderContext,
 			maxReadFileLine: maxReadFileLine ?? 500,
+			maxReadCharacterLimit: maxReadCharacterLimit ?? DEFAULT_FILE_READ_CHARACTER_LIMIT,
 			maxImageFileSize: maxImageFileSize ?? 5,
 			maxTotalImageSize: maxTotalImageSize ?? 20,
 			maxConcurrentFileReads: maxConcurrentFileReads ?? 5,
@@ -2128,7 +2166,6 @@ export class ClineProvider
 			terminalOutputLineLimit: stateValues.terminalOutputLineLimit ?? 500,
 			terminalOutputCharacterLimit:
 				stateValues.terminalOutputCharacterLimit ?? DEFAULT_TERMINAL_OUTPUT_CHARACTER_LIMIT,
-			maxReadCharacterLimit: stateValues.maxReadCharacterLimit ?? DEFAULT_FILE_READ_CHARACTER_LIMIT,
 			terminalShellIntegrationTimeout:
 				stateValues.terminalShellIntegrationTimeout ?? Terminal.defaultShellIntegrationTimeout,
 			terminalShellIntegrationDisabled: stateValues.terminalShellIntegrationDisabled ?? false,
@@ -2160,11 +2197,10 @@ export class ClineProvider
 			openRouterUseMiddleOutTransform: stateValues.openRouterUseMiddleOutTransform,
 			browserToolEnabled: stateValues.browserToolEnabled ?? true,
 			// telemetrySetting: stateValues.telemetrySetting || "disabled",
-			// showRooIgnoredFiles: stateValues.showRooIgnoredFiles ?? true,
-			// maxReadFileLine: stateValues.maxReadFileLine ?? 500,
 			telemetrySetting: stateValues.telemetrySetting || "unset",
 			showRooIgnoredFiles: stateValues.showRooIgnoredFiles ?? false,
 			maxReadFileLine: stateValues.maxReadFileLine ?? 500,
+			maxReadCharacterLimit: stateValues.maxReadCharacterLimit ?? DEFAULT_FILE_READ_CHARACTER_LIMIT,
 			maxImageFileSize: stateValues.maxImageFileSize ?? 5,
 			maxTotalImageSize: stateValues.maxTotalImageSize ?? 20,
 			maxConcurrentFileReads: stateValues.maxConcurrentFileReads ?? 5,
@@ -2665,13 +2701,23 @@ export class ClineProvider
 
 		console.log(`[cancelTask] cancelling task ${task.taskId}.${task.instanceId}`)
 
-		const { historyItem } = await this.getTaskWithId(task.taskId)
+		const { historyItem, uiMessagesFilePath } = await this.getTaskWithId(task.taskId)
 
 		// Preserve parent and root task information for history item.
 		const rootTask = task.rootTask
 		const parentTask = task.parentTask
 
+		// Mark this as a user-initiated cancellation so provider-only rehydration can occur
+		task.abortReason = "user_cancelled"
+
+		// Capture the current instance to detect if rehydrate already occurred elsewhere
+		const originalInstanceId = task.instanceId
+
+		// Begin abort (non-blocking)
 		task.abortTask()
+
+		// Immediately mark the original instance as abandoned to prevent any residual activity
+		task.abandoned = true
 
 		await pWaitFor(
 			() =>
@@ -2689,11 +2735,24 @@ export class ClineProvider
 			console.error("Failed to abort task")
 		})
 
-		if (this.getCurrentTask()) {
-			// 'abandoned' will prevent this Cline instance from affecting
-			// future Cline instances. This may happen if its hanging on a
-			// streaming request.
-			this.getCurrentTask()!.abandoned = true
+		// Defensive safeguard: if current instance already changed, skip rehydrate
+		const current = this.getCurrentTask()
+		if (current && current.instanceId !== originalInstanceId) {
+			this.log(
+				`[cancelTask] Skipping rehydrate: current instance ${current.instanceId} != original ${originalInstanceId}`,
+			)
+			return
+		}
+
+		// Final race check before rehydrate to avoid duplicate rehydration
+		{
+			const currentAfterCheck = this.getCurrentTask()
+			if (currentAfterCheck && currentAfterCheck.instanceId !== originalInstanceId) {
+				this.log(
+					`[cancelTask] Skipping rehydrate after final check: current instance ${currentAfterCheck.instanceId} != original ${originalInstanceId}`,
+				)
+				return
+			}
 		}
 
 		// Clears task again, so we need to abortTask manually above.

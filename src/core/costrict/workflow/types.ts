@@ -624,3 +624,184 @@ export interface SectionExtractionConfig {
 		ttl: number
 	}
 }
+
+/**
+ * 任务同步相关的类型定义
+ * 基于技术设计文档中的接口定义
+ */
+
+/**
+ * Git 变更行信息
+ */
+export interface GitChangedLine {
+	/** 变更类型：新增、删除、修改 */
+	type: "added" | "removed" | "modified"
+	/** 行号 */
+	line: number
+	/** 行内容 */
+	content: string
+	/** 原始行号（用于修改的情况） */
+	originalLine?: number
+}
+
+/**
+ * 任务运行数据结构
+ * 包含执行任务时需要发送的所有信息
+ */
+export interface TaskRunData {
+	/** 基本信息 */
+	filePath: string // '.cospec/tasks.md'
+	timestamp: number // 执行时间戳
+
+	/** 任务信息 */
+	taskLine: number // 任务所在行号
+	taskContent: string // 任务内容
+	taskStatus: "pending" | "in-progress" | "completed" // 任务状态
+
+	/** 文件内容 */
+	fullFileContent: string // 完整文件内容
+	hasUserEdits: boolean // 是否包含用户编辑
+	lastEditTime?: number // 最后编辑时间
+
+	/** Git Diff 相关信息 */
+	diffContent?: string // git diff 输出
+	changedLines?: GitChangedLine[] // 变更的行信息
+	hasGitChanges?: boolean // 是否有 git 变更
+	fileStatus?: "modified" | "added" | "deleted" | "renamed" | "untracked" | "unchanged" // 文件状态
+
+	/** 上下文信息 */
+	workspacePath: string // 工作区路径
+	taskId?: string // 关联的任务ID
+	userId?: string // 用户ID（如果有认证）
+}
+
+/**
+ * 发送器配置
+ * 支持多种发送方式的配置
+ */
+export interface TaskSenderConfig {
+	type: "http" | "file" | "api"
+	endpoint: string // HTTP URL 或文件路径
+	headers?: Record<string, string>
+	timeout?: number
+	retryEnabled?: boolean // 是否启用重试
+}
+
+/**
+ * 编辑跟踪状态
+ * 记录文件的编辑状态和时间信息
+ */
+export interface EditTrackingState {
+	filePath: string
+	lastEditTime: number
+	hasUserEdits: boolean
+	editCount: number
+}
+
+/**
+ * 发送结果
+ * 表示任务数据发送的结果
+ */
+export interface SendResult {
+	success: boolean
+	error?: string
+	responseData?: any
+	timestamp: number
+}
+
+/**
+ * 任务信息
+ * 从 Markdown 中解析出的任务信息
+ */
+export interface TaskInfo {
+	line: number
+	content: string
+	status: "pending" | "in-progress" | "completed"
+	taskId?: string
+}
+
+/**
+ * 任务编辑跟踪器接口
+ * 专门用于跟踪 .cospec/tasks.md 文件的编辑
+ */
+export interface ITaskEditTracker {
+	/**
+	 * 处理文件编辑事件
+	 * @param filePath 文件路径
+	 * @param source 编辑源
+	 */
+	onFileEdited(filePath: string, source: import("../../context-tracking/FileContextTrackerTypes").RecordSource): void
+
+	/**
+	 * 检查文件是否有最近的编辑
+	 * @param filePath 文件路径
+	 * @returns 是否有最近编辑
+	 */
+	hasRecentEdits(filePath: string): boolean
+
+	/**
+	 * 获取文件的编辑状态
+	 * @param filePath 文件路径
+	 * @returns 编辑状态或null
+	 */
+	getEditState(filePath: string): EditTrackingState | null
+
+	/**
+	 * 清除文件的编辑状态
+	 * @param filePath 文件路径
+	 */
+	clearEditState(filePath: string): void
+}
+
+/**
+ * 任务内容提供器接口
+ * 负责读取和解析任务文件内容
+ */
+export interface ITaskContentProvider {
+	/**
+	 * 获取文件内容
+	 * @param filePath 文件路径
+	 * @returns 文件内容
+	 */
+	getFileContent(filePath: string): Promise<string>
+
+	/**
+	 * 解析指定行的任务信息
+	 * @param content 文件内容
+	 * @param line 行号
+	 * @returns 任务信息或null
+	 */
+	parseTaskAtLine(content: string, line: number): TaskInfo | null
+
+	/**
+	 * 提取所有任务
+	 * @param content 文件内容
+	 * @returns 任务信息数组
+	 */
+	extractAllTasks(content: string): TaskInfo[]
+}
+
+/**
+ * 任务发送器接口
+ * 支持多种发送方式的统一接口
+ */
+export interface ITaskSender {
+	/**
+	 * 发送任务数据
+	 * @param data 任务运行数据
+	 * @returns 发送结果
+	 */
+	send(data: TaskRunData): Promise<SendResult>
+
+	/**
+	 * 配置发送器
+	 * @param config 发送器配置
+	 */
+	configure(config: TaskSenderConfig): void
+
+	/**
+	 * 测试连接
+	 * @returns 连接是否成功
+	 */
+	testConnection(): Promise<boolean>
+}
